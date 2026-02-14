@@ -1,0 +1,12 @@
+---
+description: Pointer to MelhoreApp context and architecture docs
+globs: **/*
+---
+
+# MelhoreApp context
+
+- Read **docs/CONTEXT.md** for: what the app does, where to find reminders/categories/lists/scheduling/notifications, and current sprint.
+- Read **docs/ARCHITECTURE.md** for: data flow (UI → ViewModel → UseCase/Repo → Room / Scheduling), module dependencies, and key decisions (e.g. WorkManager vs AlarmManager).
+- Sprint goals and test criteria: **docs/SPRINTS.md**.
+
+When adding or changing features, keep these docs and the module/package structure in sync.

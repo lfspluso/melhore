@@ -1,0 +1,25 @@
+---
+description: Project-wide Android and MelhoreApp conventions
+globs: **/*.kt, **/*.kts, **/build.gradle.kts
+---
+
+# MelhoreApp – Android conventions
+
+- **Language:** Kotlin; use Kotlin idioms (data classes, sealed classes, coroutines, Flow).
+- **UI:** Jetpack Compose with Material 3. Keep screens in `ui/` packages; one screen per file (e.g. `ReminderListScreen.kt`).
+- **ViewModels:** Use `ViewModel` + `StateFlow`/`MutableStateFlow` or `stateIn` for UI state; use one-shot events or a sealed event type for navigation/feedback.
+- **Naming:** Screens → `*Screen`; ViewModels → `*ViewModel`; state → `*State`; events → `*Event`.
+- **Module boundaries:**
+  - **app:** Application, MainActivity, theme, navigation only. No business logic.
+  - **core:** No UI (no Compose in core:common, core:database, core:notifications, core:scheduling). core:database exposes Room and DAOs; core:notifications exposes NotificationHelper; core:scheduling exposes workers and scheduling API.
+  - **feature:** Each feature in its own module; depends only on core (and other features only via navigation if needed). Put new screens and ViewModels in the owning feature module.
+- **Where to add code:**
+  - New reminder-related UI/logic → `feature:reminders`.
+  - New category/list UI/logic → `feature:categories` / `feature:lists`.
+  - New settings UI → `feature:settings`.
+  - New entities/DAOs/database changes → `core:database`.
+  - New notification or channel logic → `core:notifications`.
+  - New scheduling/worker logic → `core:scheduling`.
+  - Shared types (Result, extensions) → `core:common`.
+- **DI:** Use Hilt; provide database and app-scoped dependencies in the appropriate core module (e.g. DatabaseModule in core:database).
+- **Async:** Prefer Kotlin Coroutines and Flow; expose Flow from DAOs for reactive UI.
