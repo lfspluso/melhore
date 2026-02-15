@@ -88,7 +88,7 @@ sequenceDiagram
 
 - **app** → all feature modules, all core modules.
 - **feature:reminders** → core:common, core:database, core:scheduling.
-- **feature:categories** / **feature:lists** → core:common, core:database.
+- **feature:categories** (Tags in UI) → core:common, core:database.
 - **feature:settings** → core:common, core:notifications.
 - **core:scheduling** → core:common, core:notifications, core:database.
 - **core:database** → core:common; provides Room DB and DAOs via Hilt.
@@ -120,6 +120,6 @@ sequenceDiagram
 - **core:database:** `com.melhoreapp.core.database` – `entity/`, `dao/`, `MelhoreDatabase`, `DatabaseModule`.
 - **core:notifications:** `com.melhoreapp.core.notifications` – `NotificationHelper`, resources.
 - **core:scheduling:** `com.melhoreapp.core.scheduling` – `ReminderScheduler`, `ReminderAlarmReceiver`, `SnoozeReceiver`, `RecurrenceHelper` (next occurrence), `SchedulingContext` (interface), `ReminderWorker`, `SchedulingModule` (AlarmManager + scheduler provided via Hilt).
-- **feature:** `com.melhoreapp.feature.<name>` – `ui/<screen>/`, `data/`, `domain/` (optional). **feature:categories** and **feature:lists** use `ui/list/` (list screen + ViewModel) and `ui/addedit/` (add/edit screen + ViewModel). **feature:reminders** reminder list screen includes filter by list or category and sort by date or priority (ViewModel uses ReminderDao and ChecklistItemDao; priority badge and checklist progress "checked/total" on each item); add/edit reminder screen supports **checklist items** (add/remove/toggle) and **edit mode** (route `reminders/edit/{reminderId}`; load and save reminder + checklist). **feature:settings** – `ui/SettingsScreen.kt`, `SettingsViewModel`; reads/writes `AppPreferences` for default snooze duration; Settings is the fourth bottom-nav tab.
+- **feature:** `com.melhoreapp.feature.<name>` – `ui/<screen>/`, `data/`, `domain/` (optional). **feature:categories** (shown as Tags in the app) uses `ui/list/` (list screen + ViewModel) and `ui/addedit/` (add/edit screen + ViewModel). **feature:reminders** reminder list screen includes filter by tag and sort by date or priority (ViewModel uses ReminderDao and ChecklistItemDao; priority badge and checklist progress "checked/total" on each item); add/edit reminder screen supports **checklist items** (add/remove/toggle) and **edit mode** (route `reminders/edit/{reminderId}`; load and save reminder + checklist). **feature:settings** – `ui/SettingsScreen.kt`, `SettingsViewModel`; reads/writes `AppPreferences` for default snooze duration; Settings is a bottom-nav tab (Reminders, Tags, Settings).
 
 Update this document when adding new modules or changing data/scheduling flow.

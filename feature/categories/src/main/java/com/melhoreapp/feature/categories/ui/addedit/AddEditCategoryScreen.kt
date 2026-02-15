@@ -44,13 +44,13 @@ fun AddEditCategoryScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (isEdit) "Edit category" else "New category")
+                    Text(if (isEdit) "Editar tag" else "Nova tag")
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = "Voltar"
                         )
                     }
                 },
@@ -70,7 +70,7 @@ fun AddEditCategoryScreen(
             OutlinedTextField(
                 value = name,
                 onValueChange = viewModel::setName,
-                label = { Text("Name") },
+                label = { Text("Nome") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -80,7 +80,7 @@ fun AddEditCategoryScreen(
                     .fillMaxWidth()
                     .padding(top = 16.dp)
             ) {
-                Text("Save")
+                Text("Salvar")
             }
         }
     }

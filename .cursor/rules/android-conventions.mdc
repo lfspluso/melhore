@@ -15,7 +15,7 @@ globs: **/*.kt, **/*.kts, **/build.gradle.kts
   - **feature:** Each feature in its own module; depends only on core (and other features only via navigation if needed). Put new screens and ViewModels in the owning feature module.
 - **Where to add code:**
   - New reminder-related UI/logic → `feature:reminders`.
-  - New category/list UI/logic → `feature:categories` / `feature:lists`.
+  - New tag (category) UI/logic → `feature:categories` (shown as Tags in the app). Lists tab was removed.
   - New settings UI → `feature:settings`.
   - New entities/DAOs/database changes → `core:database`.
   - New notification or channel logic → `core:notifications`.

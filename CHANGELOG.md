@@ -4,7 +4,8 @@ All notable changes to MelhoreApp are documented here. Format is by version or s
 
 ## [Unreleased]
 
-- Sprint 4–6: Categories and lists, priority and polish, documentation and release prep (see [docs/SPRINTS.md](docs/SPRINTS.md)).
+- Removed Lists tab from bottom navigation; Tags only (Categories renamed to Tags in the UI). Reminder list filter by tag only; add/edit reminder has Tag dropdown only.
+- Sprint restructure: Sprint 6 (documentation and release prep) delayed to **Sprint 10**. New **Sprints 6–9** added: filtering and sorting improvements, visualization grouping by tag, "Chegando em breve" screen for templates, Integrações tab (Telegram, Slack, WhatsApp). See [docs/SPRINTS.md](docs/SPRINTS.md).
 
 ## Sprint 3 – Recurring reminders and snooze
 

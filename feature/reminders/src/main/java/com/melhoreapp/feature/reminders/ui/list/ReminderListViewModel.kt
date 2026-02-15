@@ -4,10 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
-import com.melhoreapp.core.database.dao.ListDao
 import com.melhoreapp.core.database.dao.ReminderDao
 import com.melhoreapp.core.database.entity.CategoryEntity
-import com.melhoreapp.core.database.entity.ListEntity
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,13 +31,9 @@ data class ReminderWithChecklist(
 class ReminderListViewModel @Inject constructor(
     private val reminderDao: ReminderDao,
     private val categoryDao: CategoryDao,
-    private val listDao: ListDao,
     private val checklistItemDao: ChecklistItemDao,
     private val reminderScheduler: ReminderScheduler
 ) : ViewModel() {
-
-    private val _filterByListId = MutableStateFlow<Long?>(null)
-    val filterByListId: StateFlow<Long?> = _filterByListId.asStateFlow()
 
     private val _filterByCategoryId = MutableStateFlow<Long?>(null)
     val filterByCategoryId: StateFlow<Long?> = _filterByCategoryId.asStateFlow()
@@ -54,23 +48,10 @@ class ReminderListViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    val lists: StateFlow<List<ListEntity>> = listDao.getAllLists()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
-
-    private val remindersFlow = combine(
-        _filterByListId,
-        _filterByCategoryId
-    ) { listId, categoryId ->
-        when {
-            listId != null -> reminderDao.getRemindersByListId(listId)
-            categoryId != null -> reminderDao.getRemindersByCategoryId(categoryId)
-            else -> reminderDao.getAllReminders()
-        }
-    }.flatMapLatest { it }.combine(_sortOrder) { list, order ->
+    private val remindersFlow = _filterByCategoryId.flatMapLatest { categoryId ->
+        if (categoryId != null) reminderDao.getRemindersByCategoryId(categoryId)
+        else reminderDao.getAllReminders()
+    }.combine(_sortOrder) { list, order ->
         when (order) {
             SortOrder.DUE_DATE_ASC -> list.sortedBy { it.dueAt }
             SortOrder.PRIORITY_DESC_THEN_DUE_ASC -> list.sortedWith(
@@ -97,18 +78,11 @@ class ReminderListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    fun setFilterByList(id: Long?) {
-        _filterByListId.value = id
-        if (id != null) _filterByCategoryId.value = null
-    }
-
     fun setFilterByCategory(id: Long?) {
         _filterByCategoryId.value = id
-        if (id != null) _filterByListId.value = null
     }
 
     fun clearFilter() {
-        _filterByListId.value = null
         _filterByCategoryId.value = null
     }
 

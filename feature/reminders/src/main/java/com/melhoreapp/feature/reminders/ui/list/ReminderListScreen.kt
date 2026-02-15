@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.melhoreapp.core.database.entity.CategoryEntity
-import com.melhoreapp.core.database.entity.ListEntity
 import com.melhoreapp.core.database.entity.Priority
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.RecurrenceType
@@ -64,15 +63,13 @@ fun ReminderListScreen(
 ) {
     val remindersWithChecklist by viewModel.remindersWithChecklist.collectAsState()
     val categories by viewModel.categories.collectAsState()
-    val lists by viewModel.lists.collectAsState()
-    val filterByListId by viewModel.filterByListId.collectAsState()
     val filterByCategoryId by viewModel.filterByCategoryId.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reminders") },
+                title = { Text("Melhores") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -85,7 +82,7 @@ fun ReminderListScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add reminder")
+                Icon(Icons.Default.Add, contentDescription = "Adicionar melhore")
             }
         }
     ) { paddingValues ->
@@ -99,11 +96,8 @@ fun ReminderListScreen(
                 onSortOrderChange = viewModel::setSortOrder
             )
             ReminderFilterRow(
-                filterByListId = filterByListId,
                 filterByCategoryId = filterByCategoryId,
-                lists = lists,
                 categories = categories,
-                onFilterByList = viewModel::setFilterByList,
                 onFilterByCategory = viewModel::setFilterByCategory,
                 onClearFilter = viewModel::clearFilter
             )
@@ -119,12 +113,12 @@ fun ReminderListScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "No reminders yet",
+                            text = "Nenhum melhore ainda",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Tap + to add a reminder",
+                            text = "Toque em + para adicionar um melhore",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -167,7 +161,7 @@ private fun ReminderSortRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Sort:",
+            text = "Ordenar:",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(end = 4.dp)
@@ -175,12 +169,12 @@ private fun ReminderSortRow(
         FilterChip(
             selected = sortOrder == SortOrder.DUE_DATE_ASC,
             onClick = { onSortOrderChange(SortOrder.DUE_DATE_ASC) },
-            label = { Text("By date") }
+            label = { Text("Por data") }
         )
         FilterChip(
             selected = sortOrder == SortOrder.PRIORITY_DESC_THEN_DUE_ASC,
             onClick = { onSortOrderChange(SortOrder.PRIORITY_DESC_THEN_DUE_ASC) },
-            label = { Text("By priority") }
+            label = { Text("Por prioridade") }
         )
     }
 }
@@ -188,15 +182,12 @@ private fun ReminderSortRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReminderFilterRow(
-    filterByListId: Long?,
     filterByCategoryId: Long?,
-    lists: List<ListEntity>,
     categories: List<CategoryEntity>,
-    onFilterByList: (Long?) -> Unit,
     onFilterByCategory: (Long?) -> Unit,
     onClearFilter: () -> Unit
 ) {
-    val hasFilter = filterByListId != null || filterByCategoryId != null
+    val hasFilter = filterByCategoryId != null
     val scrollState = rememberScrollState()
 
     Row(
@@ -210,46 +201,8 @@ private fun ReminderFilterRow(
         FilterChip(
             selected = !hasFilter,
             onClick = onClearFilter,
-            label = { Text("All") }
+            label = { Text("Todos") }
         )
-        var listExpanded by remember { mutableStateOf(false) }
-        val selectedList = lists.find { it.id == filterByListId }
-        ExposedDropdownMenuBox(
-            expanded = listExpanded,
-            onExpandedChange = { listExpanded = it }
-        ) {
-            OutlinedTextField(
-                value = selectedList?.name ?: "List",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Filter by list") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = listExpanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(0.4f)
-            )
-            DropdownMenu(
-                expanded = listExpanded,
-                onDismissRequest = { listExpanded = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("None") },
-                    onClick = {
-                        onFilterByList(null)
-                        listExpanded = false
-                    }
-                )
-                lists.forEach { list ->
-                    DropdownMenuItem(
-                        text = { Text(list.name) },
-                        onClick = {
-                            onFilterByList(list.id)
-                            listExpanded = false
-                        }
-                    )
-                }
-            }
-        }
         var categoryExpanded by remember { mutableStateOf(false) }
         val selectedCategory = categories.find { it.id == filterByCategoryId }
         ExposedDropdownMenuBox(
@@ -257,10 +210,10 @@ private fun ReminderFilterRow(
             onExpandedChange = { categoryExpanded = it }
         ) {
             OutlinedTextField(
-                value = selectedCategory?.name ?: "Category",
+                value = selectedCategory?.name ?: "Tag",
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Filter by category") },
+                label = { Text("Filtrar por tag") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                 modifier = Modifier
                     .menuAnchor()
@@ -271,7 +224,7 @@ private fun ReminderFilterRow(
                 onDismissRequest = { categoryExpanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("None") },
+                    text = { Text("Nenhuma") },
                     onClick = {
                         onFilterByCategory(null)
                         categoryExpanded = false
@@ -302,13 +255,19 @@ private fun PriorityBadge(
         Priority.HIGH -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
         Priority.URGENT -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
     }
+    val priorityLabel = when (priority) {
+        Priority.LOW -> "Baixa"
+        Priority.MEDIUM -> "Média"
+        Priority.HIGH -> "Alta"
+        Priority.URGENT -> "Urgente"
+    }
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.small,
         color = containerColor
     ) {
         Text(
-            text = priority.name.lowercase().replaceFirstChar { it.uppercase() },
+            text = priorityLabel,
             style = MaterialTheme.typography.labelSmall,
             color = contentColor,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -359,8 +318,13 @@ private fun ReminderItem(
                     color = MaterialTheme.colorScheme.outline
                 )
                 if (reminder.type != RecurrenceType.NONE) {
+                    val recurrenceLabel = when (reminder.type) {
+                        RecurrenceType.NONE -> ""
+                        RecurrenceType.DAILY -> "Diário"
+                        RecurrenceType.WEEKLY -> "Semanal"
+                    }
                     Text(
-                        text = reminder.type.name.lowercase().replaceFirstChar { it.uppercase() },
+                        text = recurrenceLabel,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(top = 2.dp)
@@ -382,7 +346,7 @@ private fun ReminderItem(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete reminder"
+                    contentDescription = "Excluir melhore"
                 )
             }
         }
@@ -395,7 +359,7 @@ private fun ReminderListScreenEmptyPreview() {
     MaterialTheme {
         Scaffold(
             topBar = {
-                TopAppBar(title = { Text("Reminders") })
+                TopAppBar(title = { Text("Melhores") })
             }
         ) { paddingValues ->
             Box(
@@ -404,7 +368,7 @@ private fun ReminderListScreenEmptyPreview() {
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No reminders yet")
+                Text("Nenhum melhore ainda")
             }
         }
     }

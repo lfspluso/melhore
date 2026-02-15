@@ -5,7 +5,7 @@ globs: **/*
 
 # MelhoreApp context
 
-- Read **docs/CONTEXT.md** for: what the app does, where to find reminders/categories/lists/scheduling/notifications, and current sprint.
+- Read **docs/CONTEXT.md** for: what the app does, where to find reminders/tags/scheduling/notifications, and current sprint. (Tags are the UI name for categories; Lists tab was removed.)
 - Read **docs/ARCHITECTURE.md** for: data flow (UI → ViewModel → UseCase/Repo → Room / Scheduling), module dependencies, and key decisions (e.g. WorkManager vs AlarmManager).
 - Sprint goals and test criteria: **docs/SPRINTS.md**.
 

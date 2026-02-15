@@ -1,7 +1,6 @@
 package com.melhoreapp.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -27,9 +26,6 @@ import androidx.navigation.navArgument
 import com.melhoreapp.feature.categories.ui.addedit.AddEditCategoryScreen
 import com.melhoreapp.feature.categories.ui.list.CategoryListScreen
 import com.melhoreapp.feature.categories.ui.list.CategoryListViewModel
-import com.melhoreapp.feature.lists.ui.addedit.AddEditListScreen
-import com.melhoreapp.feature.lists.ui.list.ListListScreen
-import com.melhoreapp.feature.lists.ui.list.ListListViewModel
 import com.melhoreapp.feature.reminders.ui.addedit.AddReminderScreen
 import com.melhoreapp.feature.reminders.ui.addedit.AddReminderViewModel
 import com.melhoreapp.feature.reminders.ui.list.ReminderListScreen
@@ -41,10 +37,9 @@ private sealed class Tab(
     val title: String,
     val icon: ImageVector
 ) {
-    data object Reminders : Tab("reminders", "Reminders", Icons.Default.Notifications)
-    data object Categories : Tab("categories", "Categories", Icons.Default.Star)
-    data object Lists : Tab("lists", "Lists", Icons.Default.List)
-    data object Settings : Tab("settings", "Settings", Icons.Default.Settings)
+    data object Reminders : Tab("reminders", "Melhores", Icons.Default.Notifications)
+    data object Categories : Tab("categories", "Tags", Icons.Default.Star)
+    data object Settings : Tab("settings", "Configurações", Icons.Default.Settings)
 }
 
 @Composable
@@ -56,7 +51,6 @@ fun MelhoreNavHost() {
     val currentTab = when {
         currentRoute?.startsWith("reminders") == true -> Tab.Reminders
         currentRoute?.startsWith("categories") == true -> Tab.Categories
-        currentRoute?.startsWith("lists") == true -> Tab.Lists
         currentRoute?.startsWith("settings") == true -> Tab.Settings
         else -> Tab.Reminders
     }
@@ -64,7 +58,7 @@ fun MelhoreNavHost() {
     androidx.compose.material3.Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf(Tab.Reminders, Tab.Categories, Tab.Lists, Tab.Settings).forEach { tab ->
+                listOf(Tab.Reminders, Tab.Categories, Tab.Settings).forEach { tab ->
                     val selected = currentTab == tab
                     NavigationBarItem(
                         selected = selected,
@@ -147,29 +141,6 @@ fun MelhoreNavHost() {
                 arguments = listOf(navArgument("categoryId") { type = NavType.LongType })
             ) {
                 AddEditCategoryScreen(
-                    onBack = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() }
-                )
-            }
-            composable(Tab.Lists.route) {
-                val listViewModel: ListListViewModel = hiltViewModel()
-                ListListScreen(
-                    viewModel = listViewModel,
-                    onAddClick = { navController.navigate("lists/add") },
-                    onListClick = { id -> navController.navigate("lists/edit/$id") }
-                )
-            }
-            composable("lists/add") {
-                AddEditListScreen(
-                    onBack = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() }
-                )
-            }
-            composable(
-                route = "lists/edit/{listId}",
-                arguments = listOf(navArgument("listId") { type = NavType.LongType })
-            ) {
-                AddEditListScreen(
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
                 )

@@ -53,7 +53,7 @@ This document describes how to test and validate each sprint (or step) of the ap
 | 1 | On the add screen, enter a **title** (e.g. “Test reminder”). | Title is accepted; field shows the text. |
 | 2 | Tap the **date** button. | A date picker dialog opens. Selecting a date and confirming updates the shown date. |
 | 3 | Tap the **time** button. | A time picker opens. Selecting a time and confirming updates the shown time. |
-| 4 | (Optional) Open **Category** or **List** dropdown. | Dropdown opens; “None” and any existing categories/lists are shown. Selecting an option updates the field. (If none exist yet, only “None” may appear.) |
+| 4 | (Optional) Open **Tag** dropdown. | Dropdown opens; “None” and any existing tags are shown. Selecting an option updates the field. (If none exist yet, only “None” may appear.) |
 | 5 | (Optional) Open **Priority** dropdown. | Options (e.g. Low, Medium, High, Urgent) appear; selection updates the field. |
 | 6 | Tap **Save reminder**. | App navigates **back to the Reminders list**. No crash. |
 | 7 | On the list screen. | The new reminder appears as a **card** with: the title, due date/time (e.g. “MMM d, yyyy · HH:mm”), and priority if not Medium. A **delete** (trash) icon is visible on the card. |
@@ -109,17 +109,17 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 4 – Categories and lists
+## Sprint 4 – Tags (organize and filter reminders)
 
-**Goal:** CRUD for categories and lists; assign to reminders; filter reminders.
+**Goal:** CRUD for tags; assign tag to reminders; filter reminders by tag.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Tap **Categories** or **Lists** in the bottom navigation bar. Tap the **+** FAB. Enter a name and tap **Save**. | Category/list is created and appears in the list. You can tap an item to edit, or the delete icon to remove it. |
-| 2 | On the **Reminders** tab, tap **+** to add a reminder. Open **Category** or **List** dropdown and select one you created. Save. | Reminder is saved with the chosen category/list. |
-| 3 | On the reminder list, use the filter row: tap **Filter by list** or **Filter by category**, choose a list or category (or **None**). Tap **All** to clear the filter. | List shows only reminders matching the selected filter; **All** shows every reminder. |
+| 1 | Tap **Tags** in the bottom navigation bar. Tap the **+** FAB. Enter a name and tap **Save**. | Tag is created and appears in the list. You can tap an item to edit, or the delete icon to remove it. |
+| 2 | On the **Reminders** tab, tap **+** to add a reminder. Open **Tag** dropdown and select one you created. Save. | Reminder is saved with the chosen tag. |
+| 3 | On the reminder list, use the filter row: tap **Filter by tag**, choose a tag (or **None**). Tap **All** to clear the filter. | List shows only reminders matching the selected tag; **All** shows every reminder. |
 
-**Validation:** Categories and lists can be managed (CRUD via bottom nav) and used to organize and filter reminders.
+**Validation:** Tags can be managed (CRUD via bottom nav) and used to organize and filter reminders.
 
 ---
 
@@ -152,7 +152,59 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 6 – Documentation and release prep *(to be implemented)*
+## Sprint 6 – Filtering and sorting *(to be implemented)*
+
+**Goal:** Richer filters and sort; filter/sort persistence.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Change filter (e.g. by tag) and/or sort (e.g. by priority). Force stop app and relaunch. | Last-used filter and sort are restored; list shows same filter/sort state. |
+| 2 | Use any additional filter or sort options added in this sprint. | Filters and sort behave as documented; defaults remain "All" and "By date". |
+
+**Validation:** Filter and sort choices persist; new options work as specified.
+
+---
+
+## Sprint 7 – Grouping by tag *(to be implemented)*
+
+**Goal:** Reminder list can be grouped by tag; optional flat/grouped toggle.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Enable "Group by tag" (or equivalent) on the reminder list. | List shows sections per tag (and "Sem tag" for untagged); sections are clearly labeled. |
+| 2 | Switch to flat list (or disable grouping). | List shows all reminders in single list (existing sort still applies). |
+
+**Validation:** Grouped view and flat view both work; sections have clear visual hierarchy.
+
+---
+
+## Sprint 8 – Templates "Chegando em breve" *(to be implemented)*
+
+**Goal:** Coming-soon placeholder screen for templates; discoverable entry point.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Reach the templates entry point (menu, secondary FAB, or tab as implemented). | Navigate to the "Chegando em breve" / coming-soon screen. |
+| 2 | Read the screen content. | Friendly message (e.g. "Templates de lembretes em breve"); no broken or placeholder logic. |
+
+**Validation:** Screen is reachable and sets correct expectation.
+
+---
+
+## Sprint 9 – Integrations tab *(to be implemented)*
+
+**Goal:** Integrações tab with send/share to Telegram, Slack, WhatsApp.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Tap **Integrações** in the bottom navigation bar. | Integrations screen opens; Telegram, Slack, WhatsApp (or equivalent) are listed. |
+| 2 | Use "Send to…" or "Configure" for at least one integration. | Reminder text (or message) can be sent or shared via the chosen path (e.g. share sheet or deep link). |
+
+**Validation:** Integrations tab visible; at least one integration path works as documented.
+
+---
+
+## Sprint 10 – Documentation and release prep *(to be implemented)*
 
 **Goal:** Docs and release readiness.
 
@@ -171,10 +223,14 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 1:** Add reminder → appears in list → delete works → force stop and relaunch → list still has data.
 - **Sprint 2:** Reminder 1–2 min in future → notification at due time (even when app was killed); optional: reboot with future reminder → still fires.
 - **Sprint 3:** Recurring reminder fires; snooze delays next notification.
-- **Sprint 4:** Categories/lists CRUD; filter reminders by category/list.
+- **Sprint 4:** Tags CRUD; filter reminders by tag.
 - **Sprint 5:** Priority visible/sortable; settings persist.
 - **Sprint 5.5:** Add reminder with checklist items; tap card to edit; add/toggle/remove items; list shows progress; data persists.
-- **Sprint 6:** Docs support onboarding and tests.
+- **Sprint 6:** Filter/sort persistence; new filter and sort options.
+- **Sprint 7:** Group by tag (and flat list) work; sections labeled.
+- **Sprint 8:** Templates coming-soon screen reachable and clear.
+- **Sprint 9:** Integrações tab; at least one integration path works.
+- **Sprint 10:** Docs support onboarding and tests.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.
 

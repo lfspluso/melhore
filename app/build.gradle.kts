@@ -48,7 +48,6 @@ dependencies {
     implementation(project(":core:scheduling"))
     implementation(project(":feature:reminders"))
     implementation(project(":feature:categories"))
-    implementation(project(":feature:lists"))
     implementation(project(":feature:settings"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

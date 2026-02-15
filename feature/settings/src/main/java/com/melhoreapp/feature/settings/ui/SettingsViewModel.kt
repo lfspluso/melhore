@@ -14,11 +14,11 @@ import javax.inject.Inject
 data class SnoozeOption(val label: String, val durationMs: Long)
 
 val SNOOZE_OPTIONS: List<SnoozeOption> = listOf(
-    SnoozeOption("5 minutes", 5 * 60 * 1000L),
-    SnoozeOption("10 minutes", 10 * 60 * 1000L),
-    SnoozeOption("15 minutes", 15 * 60 * 1000L),
-    SnoozeOption("1 hour", 60 * 60 * 1000L),
-    SnoozeOption("1 day", 24 * 60 * 60 * 1000L)
+    SnoozeOption("5 minutos", 5 * 60 * 1000L),
+    SnoozeOption("10 minutos", 10 * 60 * 1000L),
+    SnoozeOption("15 minutos", 15 * 60 * 1000L),
+    SnoozeOption("1 hora", 60 * 60 * 1000L),
+    SnoozeOption("1 dia", 24 * 60 * 60 * 1000L)
 )
 
 @HiltViewModel

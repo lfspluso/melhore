@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
-import com.melhoreapp.core.database.dao.ListDao
 import com.melhoreapp.core.database.dao.ReminderDao
 import com.melhoreapp.core.database.entity.ChecklistItemEntity
 import com.melhoreapp.core.database.entity.Priority
@@ -14,7 +13,6 @@ import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import com.melhoreapp.core.database.entity.CategoryEntity
-import com.melhoreapp.core.database.entity.ListEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,7 +34,6 @@ data class ChecklistItemUi(
 class AddReminderViewModel @Inject constructor(
     private val reminderDao: ReminderDao,
     private val categoryDao: CategoryDao,
-    private val listDao: ListDao,
     private val checklistItemDao: ChecklistItemDao,
     private val reminderScheduler: ReminderScheduler,
     savedStateHandle: SavedStateHandle
@@ -58,9 +55,6 @@ class AddReminderViewModel @Inject constructor(
     private val _categoryId = MutableStateFlow<Long?>(null)
     val categoryId: StateFlow<Long?> = _categoryId.asStateFlow()
 
-    private val _listId = MutableStateFlow<Long?>(null)
-    val listId: StateFlow<Long?> = _listId.asStateFlow()
-
     private val _priority = MutableStateFlow(Priority.MEDIUM)
     val priority: StateFlow<Priority> = _priority.asStateFlow()
 
@@ -77,13 +71,6 @@ class AddReminderViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    val lists: StateFlow<List<ListEntity>> = listDao.getAllLists()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
-
     init {
         reminderId?.let { id ->
             viewModelScope.launch {
@@ -91,7 +78,6 @@ class AddReminderViewModel @Inject constructor(
                     _title.value = reminder.title
                     _dueAt.value = reminder.dueAt
                     _categoryId.value = reminder.categoryId
-                    _listId.value = reminder.listId
                     _priority.value = reminder.priority
                     _recurrenceType.value = reminder.type
                 }
@@ -112,7 +98,6 @@ class AddReminderViewModel @Inject constructor(
     fun setTitle(value: String) { _title.value = value }
     fun setDueAt(epochMillis: Long) { _dueAt.value = epochMillis }
     fun setCategoryId(id: Long?) { _categoryId.value = id }
-    fun setListId(id: Long?) { _listId.value = id }
     fun setPriority(p: Priority) { _priority.value = p }
     fun setRecurrenceType(type: RecurrenceType) { _recurrenceType.value = type }
 
@@ -165,7 +150,7 @@ class AddReminderViewModel @Inject constructor(
                     type = _recurrenceType.value,
                     dueAt = _dueAt.value,
                     categoryId = _categoryId.value,
-                    listId = _listId.value,
+                    listId = null,
                     priority = _priority.value,
                     updatedAt = now
                 )
@@ -191,7 +176,7 @@ class AddReminderViewModel @Inject constructor(
                     type = _recurrenceType.value,
                     dueAt = _dueAt.value,
                     categoryId = _categoryId.value,
-                    listId = _listId.value,
+                    listId = null,
                     priority = _priority.value,
                     snoozedUntil = null,
                     isActive = true,

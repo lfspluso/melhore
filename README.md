@@ -1,6 +1,6 @@
 # MelhoreApp
 
-Routine-improvement Android app: one-time and recurring reminders, notifications, categories, priority levels, snooze, and lists. Data is stored locally (Room). Simple Jetpack Compose UI and background scheduling (AlarmManager for reminders).
+Routine-improvement Android app: one-time and recurring reminders, notifications, tags, priority levels, and snooze. Data is stored locally (Room). Simple Jetpack Compose UI and background scheduling (AlarmManager for reminders).
 
 ## Requirements
 
@@ -25,8 +25,7 @@ Routine-improvement Android app: one-time and recurring reminders, notifications
 - **core/notifications** – Notification channels and posting.
 - **core/scheduling** – AlarmManager for reminder scheduling; ReminderWorker (WorkManager) also available.
 - **feature/reminders** – Reminder list, add/edit, detail (Compose).
-- **feature/categories** – Category CRUD and list.
-- **feature/lists** – Lists CRUD and list.
+- **feature/categories** – Tags (CRUD and list; shown as "Tags" in the app).
 - **feature/settings** – App/settings screens.
 
 ## Documentation

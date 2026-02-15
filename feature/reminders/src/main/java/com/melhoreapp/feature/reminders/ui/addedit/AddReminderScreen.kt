@@ -57,7 +57,6 @@ import androidx.compose.ui.unit.dp
 import com.melhoreapp.core.database.entity.CategoryEntity
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
-import com.melhoreapp.core.database.entity.ListEntity
 import com.melhoreapp.core.database.entity.Priority
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -75,11 +74,9 @@ fun AddReminderScreen(
     val title by viewModel.title.collectAsState()
     val dueAt by viewModel.dueAt.collectAsState()
     val categoryId by viewModel.categoryId.collectAsState()
-    val listId by viewModel.listId.collectAsState()
     val priority by viewModel.priority.collectAsState()
     val recurrenceType by viewModel.recurrenceType.collectAsState()
     val categories by viewModel.categories.collectAsState()
-    val lists by viewModel.lists.collectAsState()
     val checklistItems by viewModel.checklistItems.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -125,10 +122,10 @@ fun AddReminderScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) "Edit reminder" else "New reminder") },
+                title = { Text(if (viewModel.isEditMode) "Editar melhore" else "Novo melhore") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -149,7 +146,7 @@ fun AddReminderScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = viewModel::setTitle,
-                label = { Text("Title") },
+                label = { Text("Título") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -183,11 +180,6 @@ fun AddReminderScreen(
                 selectedId = categoryId,
                 onSelect = viewModel::setCategoryId
             )
-            ListDropdown(
-                lists = lists,
-                selectedId = listId,
-                onSelect = viewModel::setListId
-            )
             PriorityDropdown(
                 selected = priority,
                 onSelect = viewModel::setPriority
@@ -215,15 +207,15 @@ fun AddReminderScreen(
                                 if (e is ExactAlarmPermissionRequiredException) {
                                     openExactAlarmSettings()
                                     if (snackbarHostState.showSnackbar(
-                                            message = "Allow Alarms & reminders for on-time notifications",
-                                            actionLabel = "Settings"
+                                            message = "Permitir alarmes e melhores para notificações no horário",
+                                            actionLabel = "Configurações"
                                         ) == SnackbarResult.ActionPerformed
                                     ) {
                                         openExactAlarmSettings()
                                     }
                                 } else {
                                     snackbarHostState.showSnackbar(
-                                        message = e.message ?: "Could not save reminder"
+                                        message = e.message ?: "Não foi possível salvar o melhore"
                                     )
                                 }
                             }
@@ -231,7 +223,7 @@ fun AddReminderScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Save reminder")
+                Text("Salvar melhore")
             }
         }
     }
@@ -251,13 +243,13 @@ private fun ChecklistSection(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Checklist",
+            text = "Lista de verificação",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
         if (items.isEmpty()) {
             Text(
-                text = "Add a sub-task",
+                text = "Adicionar uma tarefa",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -276,7 +268,7 @@ private fun ChecklistSection(
                     onCheckedChange = { onToggleItem(item.id) },
                     modifier = Modifier
                         .size(48.dp)
-                        .semantics { contentDescription = "Toggle ${item.label}" }
+                        .semantics { contentDescription = "Alternar ${item.label}" }
                 )
                 Text(
                     text = item.label,
@@ -292,7 +284,7 @@ private fun ChecklistSection(
                 ) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Remove ${item.label}"
+                        contentDescription = "Remover ${item.label}"
                     )
                 }
             }
@@ -305,7 +297,7 @@ private fun ChecklistSection(
             OutlinedTextField(
                 value = newItemLabel,
                 onValueChange = onNewItemLabelChange,
-                label = { Text("Sub-task") },
+                label = { Text("Tarefa") },
                 modifier = Modifier.weight(1f),
                 singleLine = true
             )
@@ -315,7 +307,7 @@ private fun ChecklistSection(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Add sub-task"
+                    contentDescription = "Adicionar tarefa"
                 )
             }
         }
@@ -330,7 +322,7 @@ private fun CategoryDropdown(
     onSelect: (Long?) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val selectedName = categories.find { it.id == selectedId }?.name ?: "None"
+    val selectedName = categories.find { it.id == selectedId }?.name ?: "Nenhuma"
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it }
@@ -339,7 +331,7 @@ private fun CategoryDropdown(
             value = selectedName,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Category") },
+            label = { Text("Tag") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor()
@@ -350,7 +342,7 @@ private fun CategoryDropdown(
             onDismissRequest = { expanded = false }
         ) {
             DropdownMenuItem(
-                text = { Text("None") },
+                text = { Text("Nenhuma") },
                 onClick = {
                     onSelect(null)
                     expanded = false
@@ -369,51 +361,11 @@ private fun CategoryDropdown(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ListDropdown(
-    lists: List<ListEntity>,
-    selectedId: Long?,
-    onSelect: (Long?) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedName = lists.find { it.id == selectedId }?.name ?: "None"
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
-        OutlinedTextField(
-            value = selectedName,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("List") },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth()
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            DropdownMenuItem(
-                text = { Text("None") },
-                onClick = {
-                    onSelect(null)
-                    expanded = false
-                }
-            )
-            lists.forEach { list ->
-                DropdownMenuItem(
-                    text = { Text(list.name) },
-                    onClick = {
-                        onSelect(list.id)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
+private fun priorityLabel(p: Priority): String = when (p) {
+    Priority.LOW -> "Baixa"
+    Priority.MEDIUM -> "Média"
+    Priority.HIGH -> "Alta"
+    Priority.URGENT -> "Urgente"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -428,10 +380,10 @@ private fun PriorityDropdown(
         onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selected.name.lowercase().replaceFirstChar { it.uppercase() },
+            value = priorityLabel(selected),
             onValueChange = {},
             readOnly = true,
-            label = { Text("Priority") },
+            label = { Text("Prioridade") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor()
@@ -443,7 +395,7 @@ private fun PriorityDropdown(
         ) {
             Priority.entries.forEach { p ->
                 DropdownMenuItem(
-                    text = { Text(p.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                    text = { Text(priorityLabel(p)) },
                     onClick = {
                         onSelect(p)
                         expanded = false
@@ -462,9 +414,9 @@ private fun RecurrenceDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedLabel = when (selected) {
-        RecurrenceType.NONE -> "None"
-        RecurrenceType.DAILY -> "Daily"
-        RecurrenceType.WEEKLY -> "Weekly"
+        RecurrenceType.NONE -> "Nenhuma"
+        RecurrenceType.DAILY -> "Diário"
+        RecurrenceType.WEEKLY -> "Semanal"
     }
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -474,7 +426,7 @@ private fun RecurrenceDropdown(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Repeat") },
+            label = { Text("Repetir") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor()
@@ -486,9 +438,9 @@ private fun RecurrenceDropdown(
         ) {
             RecurrenceType.entries.forEach { type ->
                 val label = when (type) {
-                    RecurrenceType.NONE -> "None"
-                    RecurrenceType.DAILY -> "Daily"
-                    RecurrenceType.WEEKLY -> "Weekly"
+                    RecurrenceType.NONE -> "Nenhuma"
+                    RecurrenceType.DAILY -> "Diário"
+                    RecurrenceType.WEEKLY -> "Semanal"
                 }
                 DropdownMenuItem(
                     text = { Text(label) },
@@ -529,7 +481,7 @@ private fun AddReminderDatePickerDialog(
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+            OutlinedButton(onClick = onDismiss) { Text("Cancelar") }
         }
     ) {
         androidx.compose.material3.DatePicker(state = datePickerState)
@@ -563,7 +515,7 @@ private fun AddReminderTimePickerDialog(
             }
         },
         dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+            OutlinedButton(onClick = onDismiss) { Text("Cancelar") }
         },
         text = {
             androidx.compose.material3.TimePicker(state = timePickerState)
@@ -576,7 +528,7 @@ private fun AddReminderTimePickerDialog(
 private fun AddReminderScreenPreview() {
     MaterialTheme {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Add reminder form preview")
+            Text("Pré-visualização do formulário de melhore")
         }
     }
 }

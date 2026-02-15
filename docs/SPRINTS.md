@@ -11,7 +11,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Deliverables:**
 
 - Root project: Kotlin, Gradle Kotlin DSL, version catalog (`gradle/libs.versions.toml`).
-- Modules: `:app`, `:core:common`, `:core:database`, `:core:notifications`, `:core:scheduling`, `:feature:reminders`, `:feature:categories`, `:feature:lists`, `:feature:settings`.
+- Modules: `:app`, `:core:common`, `:core:database`, `:core:notifications`, `:core:scheduling`, `:feature:reminders`, `:feature:categories`, `:feature:settings`.
 - Compose, Hilt, Room (DB + entities + DAOs), WorkManager wired in `:app` and relevant modules.
 - Empty Compose screen (e.g. Reminder list placeholder) shown from main navigation.
 
@@ -77,22 +77,22 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 4 – Categories and lists
+## Sprint 4 – Categories and lists (later: Tags only, Lists tab removed)
 
-**Goal:** CRUD categories and lists; assign to reminders; filter by list/category.
+**Goal:** CRUD for organizing reminders; assign to reminders; filter reminders.
 
 **Deliverables:**
 
-- **feature:categories:** CRUD categories; assign category to reminder in add/edit.
-- **feature:lists:** CRUD lists; assign list to reminder; optional list filter on reminder list.
+- **feature:categories:** CRUD (shown as **Tags** in the UI); assign tag to reminder in add/edit; filter reminders by tag.
+- Lists tab was removed; reminder list no longer filters by list.
 
 **Done criteria:**
 
-- [x] Create categories and lists.
-- [x] Filter reminders by list/category.
+- [x] Create tags (categories in code).
+- [x] Filter reminders by tag.
 - [x] Validate via [TESTING.md](TESTING.md) (Sprint 4 section).
 
-**Status:** Done. Categories and lists CRUD in feature modules (list + add/edit screens, ViewModels); bottom navigation bar (Reminders, Categories, Lists); reminder list filter by list or category (filter row with “All” chip and dropdowns).
+**Status:** Done. Tags CRUD in feature:categories (list + add/edit screens, ViewModels); bottom navigation bar (Reminders, Tags, Settings); reminder list filter by tag only (filter row with “All” chip and tag dropdown).
 
 **Lessons learned:** (to be filled when sprint is done.)
 
@@ -142,7 +142,91 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 6 – Documentation and release prep
+## Sprint 6 – Filtering and sorting improvements
+
+**Goal:** Richer filters and sort options; persist last-used filter and sort so the list opens in the same state.
+
+**Deliverables:**
+
+- **feature:reminders:** Optional filters (e.g. multi-tag, priority, date range) and additional sort options (e.g. by title, creation date); keep default "All" + "By date" to avoid overwhelming users.
+- **core:common (AppPreferences):** Persist last-used filter and sort; ReminderListViewModel restores them on load.
+- Filter row/chips consistent with current "Filtrar por tag" pattern.
+
+**Done criteria:**
+
+- [ ] User can filter by more than one dimension (e.g. tag + priority) and/or sort by additional options.
+- [ ] Last filter and sort choice persist across app restarts.
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 6 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 7 – Visualization and grouping by tag
+
+**Goal:** Reminder list can be grouped by tag (sections or expandable groups) with clear visual hierarchy; optional toggle between "Group by tag" and flat list.
+
+**Deliverables:**
+
+- **feature:reminders:** Grouped list view (sections by tag name; "Sem tag" for untagged); optional "Group by tag" vs "Flat list" toggle; accessibility (headings/semantics for sections).
+
+**Done criteria:**
+
+- [ ] User can view reminders grouped by tag (or flat).
+- [ ] Toggle is discoverable; sections are clearly labeled.
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 7 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 8 – Templates ("Chegando em breve")
+
+**Goal:** Placeholder screen for future reminder templates; single "Chegando em breve" (Coming soon) screen with a short, friendly message; discoverable entry point that does not block main flows.
+
+**Deliverables:**
+
+- New screen (e.g. in **feature:reminders** or **feature:templates**): "Templates de lembretes em breve" (or similar); optional illustration or icon; no backend.
+- Entry point: menu item, secondary FAB, or dedicated tab (not replacing Reminders as start destination).
+
+**Done criteria:**
+
+- [ ] User can reach the coming-soon screen from a clear entry point.
+- [ ] Message is friendly and sets expectation; no broken or placeholder logic.
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 8 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 9 – Integrations tab
+
+**Goal:** New bottom tab "Integrações" with options to send/share reminders or messages to Telegram, Slack, WhatsApp (scope: deep links + share, or API integrations per product decision).
+
+**Deliverables:**
+
+- **feature:integrations** (or similar): New bottom-nav tab; each integration (Telegram, Slack, WhatsApp) as row/card with "Configure" or "Send to…" (deep link to app or share sheet).
+- Document in ARCHITECTURE and CONTEXT whether "send messages" is share reminder text via system share or out-of-app API (e.g. bot).
+
+**Done criteria:**
+
+- [ ] Integrações tab visible in bottom nav; at least one integration path (e.g. share to Telegram/Slack/WhatsApp) works.
+- [ ] Chosen approach (share vs API) documented in docs.
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 9 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 10 – Documentation and release prep
 
 **Goal:** Docs and release readiness.
 
@@ -155,7 +239,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Done criteria:**
 
 - [ ] New developer (or AI) can onboard using docs and run tests.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 6 section).
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 10 section).
 
 **Status:** Not started.
 
