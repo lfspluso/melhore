@@ -1,18 +1,27 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 package com.melhoreapp.feature.reminders.ui.addedit
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
@@ -24,6 +33,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -34,10 +46,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.melhoreapp.core.database.entity.CategoryEntity
+import com.melhoreapp.core.database.entity.RecurrenceType
+import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.database.entity.ListEntity
 import com.melhoreapp.core.database.entity.Priority
 import kotlinx.coroutines.launch
@@ -58,13 +77,28 @@ fun AddReminderScreen(
     val categoryId by viewModel.categoryId.collectAsState()
     val listId by viewModel.listId.collectAsState()
     val priority by viewModel.priority.collectAsState()
+    val recurrenceType by viewModel.recurrenceType.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val lists by viewModel.lists.collectAsState()
+    val checklistItems by viewModel.checklistItems.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var newChecklistItemLabel by remember { mutableStateOf("") }
+
+    fun openExactAlarmSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    }
 
     if (showDatePicker) {
         AddReminderDatePickerDialog(
@@ -88,9 +122,10 @@ fun AddReminderScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("New reminder") },
+                title = { Text(if (viewModel.isEditMode) "Edit reminder" else "New reminder") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -138,6 +173,11 @@ fun AddReminderScreen(
                 }
             }
 
+            RecurrenceDropdown(
+                selected = recurrenceType,
+                onSelect = viewModel::setRecurrenceType
+            )
+
             CategoryDropdown(
                 categories = categories,
                 selectedId = categoryId,
@@ -153,18 +193,130 @@ fun AddReminderScreen(
                 onSelect = viewModel::setPriority
             )
 
+            ChecklistSection(
+                items = checklistItems,
+                newItemLabel = newChecklistItemLabel,
+                onNewItemLabelChange = { newChecklistItemLabel = it },
+                onAddItem = {
+                    viewModel.addChecklistItem(newChecklistItemLabel)
+                    newChecklistItemLabel = ""
+                },
+                onToggleItem = viewModel::toggleChecklistItem,
+                onRemoveItem = viewModel::removeChecklistItem
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = {
                     scope.launch {
                         viewModel.save()
                             .onSuccess { onSaved() }
-                            .onFailure { /* TODO: show snackbar */ }
+                            .onFailure { e ->
+                                if (e is ExactAlarmPermissionRequiredException) {
+                                    openExactAlarmSettings()
+                                    if (snackbarHostState.showSnackbar(
+                                            message = "Allow Alarms & reminders for on-time notifications",
+                                            actionLabel = "Settings"
+                                        ) == SnackbarResult.ActionPerformed
+                                    ) {
+                                        openExactAlarmSettings()
+                                    }
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        message = e.message ?: "Could not save reminder"
+                                    )
+                                }
+                            }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Save reminder")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChecklistSection(
+    items: List<ChecklistItemUi>,
+    newItemLabel: String,
+    onNewItemLabelChange: (String) -> Unit,
+    onAddItem: () -> Unit,
+    onToggleItem: (Long) -> Unit,
+    onRemoveItem: (Long) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Checklist",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (items.isEmpty()) {
+            Text(
+                text = "Add a sub-task",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        items.forEach { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Checkbox(
+                    checked = item.checked,
+                    onCheckedChange = { onToggleItem(item.id) },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics { contentDescription = "Toggle ${item.label}" }
+                )
+                Text(
+                    text = item.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (item.checked) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (item.checked) TextDecoration.LineThrough else null,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = { onRemoveItem(item.id) },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove ${item.label}"
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newItemLabel,
+                onValueChange = onNewItemLabelChange,
+                label = { Text("Sub-task") },
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+            IconButton(
+                onClick = onAddItem,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add sub-task"
+                )
             }
         }
     }
@@ -294,6 +446,54 @@ private fun PriorityDropdown(
                     text = { Text(p.name.lowercase().replaceFirstChar { it.uppercase() }) },
                     onClick = {
                         onSelect(p)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecurrenceDropdown(
+    selected: RecurrenceType,
+    onSelect: (RecurrenceType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = when (selected) {
+        RecurrenceType.NONE -> "None"
+        RecurrenceType.DAILY -> "Daily"
+        RecurrenceType.WEEKLY -> "Weekly"
+    }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Repeat") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth()
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            RecurrenceType.entries.forEach { type ->
+                val label = when (type) {
+                    RecurrenceType.NONE -> "None"
+                    RecurrenceType.DAILY -> "Daily"
+                    RecurrenceType.WEEKLY -> "Weekly"
+                }
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onSelect(type)
                         expanded = false
                     }
                 )

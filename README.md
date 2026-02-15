@@ -1,6 +1,6 @@
 # MelhoreApp
 
-Routine-improvement Android app: one-time and recurring reminders, notifications, categories, priority levels, snooze, and lists. Data is stored locally (Room). Simple Jetpack Compose UI and background scheduling (WorkManager).
+Routine-improvement Android app: one-time and recurring reminders, notifications, categories, priority levels, snooze, and lists. Data is stored locally (Room). Simple Jetpack Compose UI and background scheduling (AlarmManager for reminders).
 
 ## Requirements
 
@@ -23,7 +23,7 @@ Routine-improvement Android app: one-time and recurring reminders, notifications
 - **core/common** – Shared utilities and types (e.g. `Result`).
 - **core/database** – Room database, entities, DAOs, Hilt module.
 - **core/notifications** – Notification channels and posting.
-- **core/scheduling** – WorkManager workers and scheduling.
+- **core/scheduling** – AlarmManager for reminder scheduling; ReminderWorker (WorkManager) also available.
 - **feature/reminders** – Reminder list, add/edit, detail (Compose).
 - **feature/categories** – Category CRUD and list.
 - **feature/lists** – Lists CRUD and list.
@@ -36,9 +36,11 @@ Routine-improvement Android app: one-time and recurring reminders, notifications
 - **[docs/SPRINTS.md](docs/SPRINTS.md)** – Sprint plan and test criteria for each sprint.
 - **[docs/TESTING.md](docs/TESTING.md)** – How to test and validate each step (sprint) with expected behaviour.
 
+This project uses **Cursor rules** (`.cursor/rules/`) for AI-assisted development; the rules point to [docs/CONTEXT.md](docs/CONTEXT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for context. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines; [CHANGELOG.md](CHANGELOG.md) for version/sprint history.
+
 ## Tech stack
 
-- Kotlin, Jetpack Compose (Material 3), Hilt, Room, WorkManager, Coroutines, Flow.
+- Kotlin, Jetpack Compose (Material 3), Hilt, Room, AlarmManager (reminder scheduling), Coroutines, Flow.
 
 ## License
 

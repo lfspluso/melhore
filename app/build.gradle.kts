@@ -65,5 +65,6 @@ dependencies {
     implementation(libs.hilt.work)
     implementation(libs.work.runtime.ktx)
     kapt(libs.hilt.compiler)
+    kapt(libs.hilt.compiler.androidx)
     debugImplementation(libs.androidx.ui.tooling)
 }

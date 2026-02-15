@@ -11,7 +11,7 @@ import dagger.assisted.AssistedInject
 
 /**
  * WorkManager worker that runs at reminder time and shows a notification.
- * Full scheduling logic in Sprint 2.
+ * Scheduled by ReminderScheduler when a reminder is created.
  */
 @HiltWorker
 class ReminderWorker @AssistedInject constructor(

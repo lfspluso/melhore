@@ -4,4 +4,9 @@
     <string name="channel_reminders_desc">Reminder notifications</string>
     <string name="channel_snoozed_name">Snoozed</string>
     <string name="channel_snoozed_desc">Snoozed reminder notifications</string>
+    <string name="notification_action_snooze">Snooze</string>
+    <string name="snooze_5_min">5 min</string>
+    <string name="snooze_15_min">15 min</string>
+    <string name="snooze_1_hour">1 hour</string>
+    <string name="snooze_1_day">1 day</string>
 </resources>
