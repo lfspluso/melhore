@@ -7,7 +7,7 @@ One-page context for developers and AI-assisted development.
 **Melhore** is a routine-improvement Android app with:
 
 - **Reminders:** One-time and recurring (daily, weekly); optional tags and priority. Each reminder can have **checklist items** (sub-tasks) that can be added, removed, and checked off.
-- **Reminder list:** Filter by multiple tags, priority, and optional date range (e.g. "Próximos 7 dias", "Este mês"); sort by due date, priority, title, or creation date (newest/oldest). Last-used filter and sort are **persisted** and restored when the app reopens.
+- **Reminder list:** Filter by multiple tags, priority, and optional date range (e.g. "Próximos 7 dias", "Este mês"); sort by due date, priority, title, or creation date (newest/oldest). List can be shown **grouped by tag** (sections with "Sem tag" for untagged) or as a **flat list**; the choice is persisted and restored. Last-used filter, sort, and group-by view are **persisted** and restored when the app reopens.
 - **Notifications:** Local notifications at reminder time (exact alarm; fire even when app was killed); snooze support (Sprint 3).
 - **Organization:** Tags, priority levels (Low, Medium, High, Urgent).
 - **Storage:** Local only (Room); no backend. May be published later; initially for 1–3 users.
@@ -30,13 +30,13 @@ One-page context for developers and AI-assisted development.
 | Scheduling (AlarmManager, boot reschedule, snooze) | `core/scheduling/` – `ReminderScheduler.kt`, `ReminderAlarmReceiver.kt`, `SnoozeReceiver.kt`, `RecurrenceHelper.kt`, `SchedulingContext` (interface); `app/` – `BootReceiver.kt` |
 | Shared types (e.g. Result) | `core/common/` – `Result.kt` |
 | App preferences (default snooze, etc.) | `core/common/` – `preferences/AppPreferences.kt` |
-| Templates (coming-soon placeholder; when implemented) | To be added (e.g. `feature/templates/` or entry from reminders) |
-| Integrations (Telegram, Slack, WhatsApp; when implemented) | To be added (e.g. `feature/integrations/`; bottom tab "Integrações") |
+| Templates (coming-soon placeholder) | `feature/reminders/` – `ui/templates/TemplatesComingSoonScreen.kt`; entry from Reminders screen (app bar icon "Modelos de lembretes") |
+| Integrations (share to Telegram, Slack, WhatsApp) | `feature/integrations/` – `ui/IntegrationsScreen.kt`; bottom tab "Integrações" |
 
 ## Current sprint
 
-**Sprint 0** through **Sprint 6** are done: app shows reminder list with **multi-tag filter**, **priority filter**, **optional date range** (e.g. Próximos 7 dias, Este mês), and **sort** by date, priority, title, or creation date; filter and sort **persist** across restarts; priority badge and checklist progress on each item; tap card to edit; add/edit reminder with **checklist** (sub-tasks); Tags CRUD via bottom nav (Reminders, Tags, Settings); notifications at due time with snooze support; Settings screen with default snooze duration (persisted).  
-Next: **Sprint 7** – Visualization and grouping by tag (then Sprints 8–9: templates "Chegando em breve", integrations tab; Sprint 10: documentation and release prep).
+**Sprint 0** through **Sprint 9** are done: app shows reminder list with **multi-tag filter**, **priority filter**, **optional date range** (e.g. Próximos 7 dias, Este mês), and **sort** by date, priority, title, or creation date; list can be **grouped by tag** or flat (toggle persisted); filter, sort, and group-by **persist** across restarts; priority badge and checklist progress on each item; tap card to edit; add/edit reminder with **checklist** (sub-tasks); Tags CRUD via bottom nav (Reminders, Tags, Integrações, Settings); **Integrações** tab with share to Telegram, Slack, WhatsApp via system share sheet; **Templates** coming-soon screen reachable from Reminders app bar (Modelos de lembretes); notifications at due time with snooze support; Settings screen with default snooze duration (persisted).  
+Next: **Sprint 10** – Documentation and release prep.
 
 ## Conventions
 

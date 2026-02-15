@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DashboardCustomize
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -65,22 +66,33 @@ import java.util.Locale
 fun ReminderListScreen(
     viewModel: ReminderListViewModel,
     onAddClick: () -> Unit,
-    onReminderClick: (Long) -> Unit = {}
+    onReminderClick: (Long) -> Unit = {},
+    onTemplatesClick: () -> Unit = {}
 ) {
     val remindersWithChecklist by viewModel.remindersWithChecklist.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val filter by viewModel.filter.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
+    val groupByTag by viewModel.groupByTag.collectAsState()
+    val groupedSections by viewModel.groupedSections.collectAsState()
     val hasActiveFilter = !filter.isAll()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Melhores") },
+                title = { Text("Melhore, Maria Luiza") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                ),
+                actions = {
+                    IconButton(onClick = onTemplatesClick) {
+                        Icon(
+                            Icons.Default.DashboardCustomize,
+                            contentDescription = "Modelos de lembretes"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -116,6 +128,10 @@ fun ReminderListScreen(
                         onFilterPriorities = viewModel::setFilterPriorities,
                         onFilterDateRange = viewModel::setFilterDateRange,
                         onClearFilter = viewModel::clearFilter
+                    )
+                    ReminderGroupByRow(
+                        groupByTag = groupByTag,
+                        onGroupByTagChange = viewModel::setGroupByTag
                     )
                 }
             }
@@ -171,15 +187,33 @@ fun ReminderListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(
-                        items = remindersWithChecklist,
-                        key = { it.reminder.id }
-                    ) { item ->
-                        ReminderItem(
-                            reminderWithChecklist = item,
-                            onClick = { onReminderClick(item.reminder.id) },
-                            onDelete = { viewModel.deleteReminder(item.reminder.id) }
-                        )
+                    if (groupByTag && groupedSections.isNotEmpty()) {
+                        groupedSections.forEachIndexed { sectionIndex, section ->
+                            item(key = "header_$sectionIndex") {
+                                SectionHeader(tagLabel = section.tagLabel)
+                            }
+                            items(
+                                items = section.items,
+                                key = { it.reminder.id }
+                            ) { item ->
+                                ReminderItem(
+                                    reminderWithChecklist = item,
+                                    onClick = { onReminderClick(item.reminder.id) },
+                                    onDelete = { viewModel.deleteReminder(item.reminder.id) }
+                                )
+                            }
+                        }
+                    } else {
+                        items(
+                            items = remindersWithChecklist,
+                            key = { it.reminder.id }
+                        ) { item ->
+                            ReminderItem(
+                                reminderWithChecklist = item,
+                                onClick = { onReminderClick(item.reminder.id) },
+                                onDelete = { viewModel.deleteReminder(item.reminder.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -420,6 +454,67 @@ private fun ReminderFilterRow(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun ReminderGroupByRow(
+    groupByTag: Boolean,
+    onGroupByTagChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Exibir:",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .padding(end = 4.dp)
+                .semantics { heading() }
+        )
+        FilterChip(
+            selected = groupByTag,
+            onClick = { onGroupByTagChange(true) },
+            label = { Text("Agrupar por tag") },
+            modifier = Modifier.semantics {
+                contentDescription = "Agrupar por tag"
+            }
+        )
+        FilterChip(
+            selected = !groupByTag,
+            onClick = { onGroupByTagChange(false) },
+            label = { Text("Lista plana") },
+            modifier = Modifier.semantics {
+                contentDescription = "Lista plana"
+            }
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(tagLabel: String) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .semantics(mergeDescendants = true) {
+                heading()
+                contentDescription = "Seção: $tagLabel"
+            },
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Text(
+            text = tagLabel,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp)
+        )
     }
 }
 

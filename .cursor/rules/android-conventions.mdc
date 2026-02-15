@@ -17,6 +17,7 @@ globs: **/*.kt, **/*.kts, **/build.gradle.kts
   - New reminder-related UI/logic → `feature:reminders`.
   - New tag (category) UI/logic → `feature:categories` (shown as Tags in the app). Lists tab was removed.
   - New settings UI → `feature:settings`.
+  - New integrations UI (share to Telegram, Slack, WhatsApp) → `feature:integrations`.
   - New entities/DAOs/database changes → `core:database`.
   - New notification or channel logic → `core:notifications`.
   - New scheduling/worker logic → `core:scheduling`.

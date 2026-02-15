@@ -49,6 +49,7 @@ dependencies {
     implementation(project(":feature:reminders"))
     implementation(project(":feature:categories"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:integrations"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

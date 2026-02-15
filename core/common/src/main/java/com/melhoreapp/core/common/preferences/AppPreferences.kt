@@ -9,6 +9,7 @@ private const val KEY_LAST_FILTER_PRIORITIES = "last_filter_priorities"
 private const val KEY_LAST_FILTER_DATE_FROM = "last_filter_date_from"
 private const val KEY_LAST_FILTER_DATE_TO = "last_filter_date_to"
 private const val KEY_LAST_SORT_ORDER = "last_sort_order"
+private const val KEY_GROUP_BY_TAG = "group_by_tag"
 
 /** Sentinel for "no date filter" (SharedPreferences cannot store null). */
 private const val DATE_FILTER_NOT_SET = 0L
@@ -76,5 +77,13 @@ class AppPreferences(context: Context) {
 
     fun setLastSortOrder(enumName: String) {
         prefs.edit().putString(KEY_LAST_SORT_ORDER, enumName).apply()
+    }
+
+    // Reminder list group-by-tag (Sprint 7)
+
+    fun getGroupByTag(): Boolean = prefs.getBoolean(KEY_GROUP_BY_TAG, false)
+
+    fun setGroupByTag(groupByTag: Boolean) {
+        prefs.edit().putBoolean(KEY_GROUP_BY_TAG, groupByTag).apply()
     }
 }

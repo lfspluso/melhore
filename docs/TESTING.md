@@ -166,42 +166,44 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 7 – Grouping by tag *(to be implemented)*
+## Sprint 7 – Grouping by tag
 
 **Goal:** Reminder list can be grouped by tag; optional flat/grouped toggle.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Enable "Group by tag" (or equivalent) on the reminder list. | List shows sections per tag (and "Sem tag" for untagged); sections are clearly labeled. |
-| 2 | Switch to flat list (or disable grouping). | List shows all reminders in single list (existing sort still applies). |
+| 1 | Enable "Agrupar por tag" on the reminder list (Exibir row). | List shows sections per tag (and "Sem tag" for untagged); sections are clearly labeled with heading semantics. |
+| 2 | Switch to "Lista plana" (or disable grouping). | List shows all reminders in single list (existing sort still applies). |
+| 3 | With "Agrupar por tag" selected, force stop app and relaunch. | Grouped view is restored (preference persisted in AppPreferences). |
 
-**Validation:** Grouped view and flat view both work; sections have clear visual hierarchy.
+**Validation:** Grouped view and flat view both work; sections have clear visual hierarchy; toggle is discoverable; group-by preference persists.
 
 ---
 
-## Sprint 8 – Templates "Chegando em breve" *(to be implemented)*
+## Sprint 8 – Templates "Chegando em breve"
 
 **Goal:** Coming-soon placeholder screen for templates; discoverable entry point.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Reach the templates entry point (menu, secondary FAB, or tab as implemented). | Navigate to the "Chegando em breve" / coming-soon screen. |
-| 2 | Read the screen content. | Friendly message (e.g. "Templates de lembretes em breve"); no broken or placeholder logic. |
+| 1 | On the **Melhores** (Reminders) screen, tap the **Modelos de lembretes** icon in the top app bar (dashboard/template icon). | Navigate to the "Templates de lembretes" / coming-soon screen. |
+| 2 | Read the screen content. | Friendly message: "Chegando em breve" and "Em breve você poderá usar modelos para criar melhores mais rápido."; no broken or placeholder logic. |
+| 3 | Tap the back arrow. | Return to the Reminders list. |
 
-**Validation:** Screen is reachable and sets correct expectation.
+**Validation:** Screen is reachable from the Reminders app bar and sets correct expectation.
 
 ---
 
-## Sprint 9 – Integrations tab *(to be implemented)*
+## Sprint 9 – Integrations tab
 
 **Goal:** Integrações tab with send/share to Telegram, Slack, WhatsApp.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Tap **Integrações** in the bottom navigation bar. | Integrations screen opens; Telegram, Slack, WhatsApp (or equivalent) are listed. |
-| 2 | Use "Send to…" or "Configure" for at least one integration. | Reminder text (or message) can be sent or shared via the chosen path (e.g. share sheet or deep link). |
+| 1 | Tap **Integrações** in the bottom navigation bar. | Integrations screen opens; Telegram, Slack, WhatsApp are listed as cards. |
+| 2 | Tap **Enviar para…** on any card (e.g. Telegram, Slack, or WhatsApp). | The **system share sheet** opens; user can choose Telegram, Slack, WhatsApp, or any other app that accepts text. The shared text is a default message (e.g. "Lembrete do MelhoreApp"). |
 
-**Validation:** Integrations tab visible; at least one integration path works as documented.
+**Validation:** Integrations tab visible; at least one integration path (share sheet) works as documented.
 
 ---
 
@@ -229,7 +231,7 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 5.5:** Add reminder with checklist items; tap card to edit; add/toggle/remove items; list shows progress; data persists.
 - **Sprint 6:** Filter/sort persistence; new filter and sort options.
 - **Sprint 7:** Group by tag (and flat list) work; sections labeled.
-- **Sprint 8:** Templates coming-soon screen reachable and clear.
+- **Sprint 8:** Templates coming-soon screen reachable from Reminders app bar (Modelos de lembretes) and clear.
 - **Sprint 9:** Integrações tab; at least one integration path works.
 - **Sprint 10:** Docs support onboarding and tests.
 

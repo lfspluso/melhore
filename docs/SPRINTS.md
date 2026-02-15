@@ -174,13 +174,13 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] User can view reminders grouped by tag (or flat).
-- [ ] Toggle is discoverable; sections are clearly labeled.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 7 section).
+- [x] User can view reminders grouped by tag (or flat).
+- [x] Toggle is discoverable; sections are clearly labeled.
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 7 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Grouping in the ViewModel (`groupedSections` from `remindersWithChecklist` + categories) keeps the UI simple; section order "Sem tag" first then alphabetical by tag name. Persisting "group by tag" in AppPreferences restores the view mode across restarts. Section headers use `semantics { heading() }` and content description for accessibility.
 
 ---
 
@@ -195,13 +195,13 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] User can reach the coming-soon screen from a clear entry point.
-- [ ] Message is friendly and sets expectation; no broken or placeholder logic.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 8 section).
+- [x] User can reach the coming-soon screen from a clear entry point.
+- [x] Message is friendly and sets expectation; no broken or placeholder logic.
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 8 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Entry via an icon in the Reminders screen TopAppBar (Modelos de lembretes) keeps the bottom nav unchanged and avoids a full tab for a placeholder. The coming-soon screen lives in feature:reminders under `ui/templates/` with no new module; route `reminders/templates` keeps the back stack and tab selection correct.
 
 ---
 
@@ -216,13 +216,13 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Integrações tab visible in bottom nav; at least one integration path (e.g. share to Telegram/Slack/WhatsApp) works.
-- [ ] Chosen approach (share vs API) documented in docs.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 9 section).
+- [x] Integrações tab visible in bottom nav; at least one integration path (e.g. share to Telegram/Slack/WhatsApp) works.
+- [x] Chosen approach (share vs API) documented in docs.
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 9 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Using the system share sheet (Intent.ACTION_SEND + createChooser) keeps scope simple and works for Telegram, Slack, WhatsApp, and any other app that accepts text—no API keys or bot setup. feature:integrations has no ViewModel; the screen uses LocalContext to launch the share intent. The chosen approach (share-only, no out-of-app API) is documented in ARCHITECTURE and CONTEXT.
 
 ---
 

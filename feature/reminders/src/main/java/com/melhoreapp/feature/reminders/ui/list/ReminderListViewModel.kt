@@ -29,6 +29,12 @@ data class ReminderWithChecklist(
     val totalCount: Int
 )
 
+/** Section for grouped-by-tag list: tag label (e.g. "Sem tag" or category name) and its reminders. */
+data class ReminderSection(
+    val tagLabel: String,
+    val items: List<ReminderWithChecklist>
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ReminderListViewModel @Inject constructor(
@@ -46,6 +52,9 @@ class ReminderListViewModel @Inject constructor(
 
     private val _sortOrder = MutableStateFlow(loadInitialSortOrder())
     val sortOrder: StateFlow<SortOrder> = _sortOrder.asStateFlow()
+
+    private val _groupByTag = MutableStateFlow(appPreferences.getGroupByTag())
+    val groupByTag: StateFlow<Boolean> = _groupByTag.asStateFlow()
 
     val categories: StateFlow<List<CategoryEntity>> = categoryDao.getAllCategories()
         .stateIn(
@@ -95,6 +104,30 @@ class ReminderListViewModel @Inject constructor(
                 checkedCount = items.count { it.checked },
                 totalCount = items.size
             )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    val groupedSections: StateFlow<List<ReminderSection>> = combine(
+        remindersWithChecklist,
+        categories,
+        _groupByTag
+    ) { list, cats, group ->
+        if (!group) return@combine emptyList()
+        val categoryByName = cats.associateBy { it.id }
+        val grouped = list.groupBy { item ->
+            item.reminder.categoryId?.let { id ->
+                categoryByName[id]?.name ?: "Sem tag"
+            } ?: "Sem tag"
+        }
+        val sortedLabels = grouped.keys.sortedWith(
+            compareBy { label: String -> if (label == "Sem tag") "" else label }
+        )
+        sortedLabels.map { label ->
+            ReminderSection(tagLabel = label, items = grouped.getValue(label))
         }
     }.stateIn(
         scope = viewModelScope,
@@ -160,6 +193,11 @@ class ReminderListViewModel @Inject constructor(
     fun setSortOrder(order: SortOrder) {
         _sortOrder.value = order
         persistSortOrder()
+    }
+
+    fun setGroupByTag(groupByTag: Boolean) {
+        _groupByTag.value = groupByTag
+        appPreferences.setGroupByTag(groupByTag)
     }
 
     fun deleteReminder(id: Long) {
