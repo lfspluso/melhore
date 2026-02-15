@@ -7,6 +7,7 @@ One-page context for developers and AI-assisted development.
 **Melhore** is a routine-improvement Android app with:
 
 - **Reminders:** One-time and recurring (daily, weekly); optional tags and priority. Each reminder can have **checklist items** (sub-tasks) that can be added, removed, and checked off.
+- **Reminder list:** Filter by multiple tags, priority, and optional date range (e.g. "Próximos 7 dias", "Este mês"); sort by due date, priority, title, or creation date (newest/oldest). Last-used filter and sort are **persisted** and restored when the app reopens.
 - **Notifications:** Local notifications at reminder time (exact alarm; fire even when app was killed); snooze support (Sprint 3).
 - **Organization:** Tags, priority levels (Low, Medium, High, Urgent).
 - **Storage:** Local only (Room); no backend. May be published later; initially for 1–3 users.
@@ -34,8 +35,8 @@ One-page context for developers and AI-assisted development.
 
 ## Current sprint
 
-**Sprint 0** through **Sprint 5.5** are done: app shows reminder list (filter by tag, sort by date or priority, priority badge and checklist progress on each item; tap card to edit), add/edit reminder with **checklist** (sub-tasks), Tags CRUD via bottom nav (Reminders, Tags, Settings), notifications at due time with snooze support, Settings screen with default snooze duration (persisted).  
-Next: **Sprint 6** – Filtering and sorting improvements (then Sprints 7–9: grouping by tag, templates "Chegando em breve", integrations tab; Sprint 10: documentation and release prep).
+**Sprint 0** through **Sprint 6** are done: app shows reminder list with **multi-tag filter**, **priority filter**, **optional date range** (e.g. Próximos 7 dias, Este mês), and **sort** by date, priority, title, or creation date; filter and sort **persist** across restarts; priority badge and checklist progress on each item; tap card to edit; add/edit reminder with **checklist** (sub-tasks); Tags CRUD via bottom nav (Reminders, Tags, Settings); notifications at due time with snooze support; Settings screen with default snooze duration (persisted).  
+Next: **Sprint 7** – Visualization and grouping by tag (then Sprints 8–9: templates "Chegando em breve", integrations tab; Sprint 10: documentation and release prep).
 
 ## Conventions
 

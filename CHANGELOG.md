@@ -4,6 +4,7 @@ All notable changes to MelhoreApp are documented here. Format is by version or s
 
 ## [Unreleased]
 
+- **Sprint 6 – Filtering and sorting:** Reminder list supports filter by multiple tags (OR), by priority (multi-select), and by date range ("Próximos 7 dias", "Este mês"); sort by due date, priority, title, creation date (asc/desc). Last-used filter and sort persist in AppPreferences and are restored on app launch. Empty state when filtered shows "Nenhum melhore com esses filtros" and "Limpar filtros". See [docs/SPRINTS.md](docs/SPRINTS.md).
 - Removed Lists tab from bottom navigation; Tags only (Categories renamed to Tags in the UI). Reminder list filter by tag only; add/edit reminder has Tag dropdown only.
 - Sprint restructure: Sprint 6 (documentation and release prep) delayed to **Sprint 10**. New **Sprints 6–9** added: filtering and sorting improvements, visualization grouping by tag, "Chegando em breve" screen for templates, Integrações tab (Telegram, Slack, WhatsApp). See [docs/SPRINTS.md](docs/SPRINTS.md).
 

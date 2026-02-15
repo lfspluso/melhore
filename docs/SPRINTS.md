@@ -154,13 +154,13 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] User can filter by more than one dimension (e.g. tag + priority) and/or sort by additional options.
-- [ ] Last filter and sort choice persist across app restarts.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 6 section).
+- [x] User can filter by more than one dimension (e.g. tag + priority) and/or sort by additional options.
+- [x] Last filter and sort choice persist across app restarts.
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 6 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** In-memory filter for priority and date range keeps the DAO simple (only multi-tag uses `getRemindersByCategoryIds`). AppPreferences for filter/sort mirrors the Settings pattern; ReminderListViewModel restores on init and persists on every filter/sort change. Control strip (Surface + section labels) and empty state when filtered ("Nenhum melhore com esses filtros" + "Limpar filtros") improve UX.
 
 ---
 

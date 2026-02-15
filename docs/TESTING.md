@@ -152,16 +152,17 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 6 – Filtering and sorting *(to be implemented)*
+## Sprint 6 – Filtering and sorting
 
 **Goal:** Richer filters and sort; filter/sort persistence.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Change filter (e.g. by tag) and/or sort (e.g. by priority). Force stop app and relaunch. | Last-used filter and sort are restored; list shows same filter/sort state. |
-| 2 | Use any additional filter or sort options added in this sprint. | Filters and sort behave as documented; defaults remain "All" and "By date". |
+| 1 | Change filter (e.g. select one or more tags, or a priority, or "Próximos 7 dias" / "Este mês") and/or sort (e.g. "Por título", "Por criação", "Mais recentes"). Force stop app and relaunch. | Last-used filter and sort are restored; list shows same filter/sort state. |
+| 2 | Tap "Todos" and "Por data". Relaunch app. | List shows all reminders sorted by date; state persists. |
+| 3 | Apply filters so no reminders match (e.g. tag with no items, or narrow date range). | Empty state shows "Nenhum melhore com esses filtros" and "Limpar filtros" button; tapping it clears filters. |
 
-**Validation:** Filter and sort choices persist; new options work as specified.
+**Validation:** Filter and sort choices persist; multi-tag, priority, date range, and all sort options work as specified; defaults remain "All" and "By date" when cleared.
 
 ---
 

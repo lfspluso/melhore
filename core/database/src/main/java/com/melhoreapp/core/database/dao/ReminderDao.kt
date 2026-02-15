@@ -28,6 +28,10 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE categoryId = :categoryId ORDER BY dueAt ASC")
     fun getRemindersByCategoryId(categoryId: Long): Flow<List<ReminderEntity>>
 
+    /** Call with non-empty list only; for empty selection use getAllReminders(). */
+    @Query("SELECT * FROM reminders WHERE categoryId IN (:categoryIds) ORDER BY dueAt ASC")
+    fun getRemindersByCategoryIds(categoryIds: List<Long>): Flow<List<ReminderEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(reminder: ReminderEntity): Long
 
