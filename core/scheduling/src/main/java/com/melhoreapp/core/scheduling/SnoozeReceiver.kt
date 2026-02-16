@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.melhoreapp.core.common.preferences.AppPreferences
+import com.melhoreapp.core.database.entity.ReminderStatus
 import kotlinx.coroutines.runBlocking
 
 /** Default snooze when no duration extra is provided (10 minutes). Kept for backward compatibility. */
@@ -12,12 +13,10 @@ const val SNOOZE_DEFAULT_MS = 10 * 60 * 1000L
 /** Request code offset for snooze PendingIntents so they do not collide with main alarm PendingIntents. */
 const val SNOOZE_REQUEST_CODE_OFFSET = 1_000_000
 
-/** Snooze preset durations in milliseconds: 5 min, 15 min, 1 hour, 1 day. */
+/** Snooze preset durations in milliseconds: 15 min, 1 hour. */
 val SNOOZE_DURATIONS_MS: List<Long> = listOf(
-    5 * 60 * 1000L,
     15 * 60 * 1000L,
-    60 * 60 * 1000L,
-    24 * 60 * 60 * 1000L
+    60 * 60 * 1000L
 )
 
 /** Number of snooze preset actions (used for cancel when deleting a reminder). */
@@ -36,15 +35,32 @@ class SnoozeReceiver : BroadcastReceiver() {
         if (reminderId < 0) return
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "Reminder"
         val notes = intent.getStringExtra(EXTRA_NOTES) ?: "Reminder"
+        
+        // Check for special "Fazendo" action
+        val isFazendo = intent.getBooleanExtra(EXTRA_IS_FAZENDO, false)
+        if (isFazendo) {
+            handleFazendoAction(context, reminderId, title, notes)
+            return
+        }
+        
+        // Check for "Personalizar" (custom) action
+        val isCustom = intent.getBooleanExtra(EXTRA_IS_CUSTOM, false)
         val rawDuration = intent.getLongExtra(EXTRA_SNOOZE_DURATION_MS, -1L)
-        val durationMs = (if (rawDuration >= 0) rawDuration
-            else AppPreferences(context.applicationContext).getDefaultSnoozeDurationMs())
-            .coerceIn(MIN_SNOOZE_MS, MAX_SNOOZE_MS)
+        val durationMs = if (isCustom) {
+            // For Sprint 14, use default duration (15 min) for "Personalizar"
+            // Full custom duration picker can be added in Sprint 15
+            15 * 60 * 1000L
+        } else if (rawDuration >= 0) {
+            rawDuration
+        } else {
+            AppPreferences(context.applicationContext).getDefaultSnoozeDurationMs()
+        }.coerceIn(MIN_SNOOZE_MS, MAX_SNOOZE_MS)
 
         val app = context.applicationContext as? SchedulingContext ?: return
         runBlocking {
             val reminder = app.database.reminderDao().getReminderById(reminderId) ?: return@runBlocking
-            if (!reminder.isActive) return@runBlocking
+            // Only process if reminder is ACTIVE
+            if (reminder.status != ReminderStatus.ACTIVE) return@runBlocking
 
             val now = System.currentTimeMillis()
             val snoozedUntil = now + durationMs
@@ -64,6 +80,32 @@ class SnoozeReceiver : BroadcastReceiver() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         manager.cancel(reminderId.toInt())
     }
+    
+    private fun handleFazendoAction(context: Context, reminderId: Long, title: String, notes: String) {
+        val app = context.applicationContext as? SchedulingContext ?: return
+        runBlocking {
+            val reminder = app.database.reminderDao().getReminderById(reminderId) ?: return@runBlocking
+            // Only process if reminder is ACTIVE
+            if (reminder.status != ReminderStatus.ACTIVE) return@runBlocking
+
+            val now = System.currentTimeMillis()
+            // Schedule follow-up notification in 1 hour with isFazendoFollowup=true
+            val followUpTime = now + (60 * 60 * 1000L) // 1 hour
+            
+            app.reminderScheduler.scheduleReminder(
+                reminderId = reminderId,
+                triggerAtMillis = followUpTime,
+                title = title,
+                notes = notes.ifEmpty() { "Reminder" },
+                isSnoozeFire = false,
+                isFazendoFollowup = true
+            )
+        }
+
+        // Dismiss the current notification
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        manager.cancel(reminderId.toInt())
+    }
 
     companion object {
         const val ACTION_SNOOZE_REMINDER = "com.melhoreapp.core.scheduling.SNOOZE_REMINDER"
@@ -71,6 +113,8 @@ class SnoozeReceiver : BroadcastReceiver() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_NOTES = "notes"
         const val EXTRA_SNOOZE_DURATION_MS = "snooze_duration_ms"
+        const val EXTRA_IS_FAZENDO = "is_fazendo"
+        const val EXTRA_IS_CUSTOM = "is_custom"
 
         private const val MIN_SNOOZE_MS = 60 * 1000L       // 1 minute
         private const val MAX_SNOOZE_MS = 30 * 24 * 60 * 60 * 1000L  // 30 days

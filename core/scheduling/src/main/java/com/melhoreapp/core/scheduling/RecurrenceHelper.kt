@@ -31,6 +31,18 @@ fun nextOccurrenceMillis(dueAtMillis: Long, type: RecurrenceType): Long? {
                 instant = instant.plusWeeks(1)
             }
         }
+        RecurrenceType.BIWEEKLY -> {
+            instant = instant.plusWeeks(2)
+            while (instant.isBefore(now) || instant.isEqual(now)) {
+                instant = instant.plusWeeks(2)
+            }
+        }
+        RecurrenceType.MONTHLY -> {
+            instant = instant.plusMonths(1)
+            while (instant.isBefore(now) || instant.isEqual(now)) {
+                instant = instant.plusMonths(1)
+            }
+        }
     }
     return instant.toInstant().toEpochMilli()
 }

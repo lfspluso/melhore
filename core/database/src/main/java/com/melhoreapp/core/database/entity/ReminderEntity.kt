@@ -34,7 +34,8 @@ data class ReminderEntity(
     val listId: Long? = null,
     val priority: Priority = Priority.MEDIUM,
     val snoozedUntil: Long? = null,
-    val isActive: Boolean = true,
+    val status: ReminderStatus = ReminderStatus.ACTIVE,
+    val isActive: Boolean = true, // Kept for backward compatibility, synced with status
     val createdAt: Long,
     val updatedAt: Long
 )

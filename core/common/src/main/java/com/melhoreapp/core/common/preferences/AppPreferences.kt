@@ -10,6 +10,10 @@ private const val KEY_LAST_FILTER_DATE_FROM = "last_filter_date_from"
 private const val KEY_LAST_FILTER_DATE_TO = "last_filter_date_to"
 private const val KEY_LAST_SORT_ORDER = "last_sort_order"
 private const val KEY_GROUP_BY_TAG = "group_by_tag"
+private const val KEY_SHOW_ADVANCED_FILTERS = "show_advanced_filters"
+private const val KEY_AUTO_DELETE_COMPLETED_REMINDERS = "auto_delete_completed_reminders"
+private const val KEY_SHOW_COMPLETED_REMINDERS = "show_completed_reminders"
+private const val KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"
 
 /** Sentinel for "no date filter" (SharedPreferences cannot store null). */
 private const val DATE_FILTER_NOT_SET = 0L
@@ -85,5 +89,54 @@ class AppPreferences(context: Context) {
 
     fun setGroupByTag(groupByTag: Boolean) {
         prefs.edit().putBoolean(KEY_GROUP_BY_TAG, groupByTag).apply()
+    }
+
+    // Advanced filters toggle (Sprint 10)
+
+    fun getShowAdvancedFilters(): Boolean = prefs.getBoolean(KEY_SHOW_ADVANCED_FILTERS, false)
+
+    fun setShowAdvancedFilters(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_ADVANCED_FILTERS, show).apply()
+    }
+
+    // Delete after completion (Sprint 13 - reworked from Sprint 11.5)
+    // Note: KEY name kept for backward compatibility, but behavior changed to only delete COMPLETED reminders
+
+    fun getDeleteAfterCompletion(): Boolean =
+        prefs.getBoolean(KEY_AUTO_DELETE_COMPLETED_REMINDERS, false)
+
+    fun setDeleteAfterCompletion(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_DELETE_COMPLETED_REMINDERS, enabled).apply()
+    }
+
+    // Backward compatibility methods (deprecated)
+    @Deprecated("Use getDeleteAfterCompletion() instead", ReplaceWith("getDeleteAfterCompletion()"))
+    fun getAutoDeleteCompletedReminders(): Boolean = getDeleteAfterCompletion()
+
+    @Deprecated("Use setDeleteAfterCompletion() instead", ReplaceWith("setDeleteAfterCompletion(enabled)"))
+    fun setAutoDeleteCompletedReminders(enabled: Boolean) = setDeleteAfterCompletion(enabled)
+
+    // Show completed reminders filter (Sprint 13)
+
+    fun getShowCompletedReminders(): Boolean = prefs.getBoolean(KEY_SHOW_COMPLETED_REMINDERS, true)
+
+    fun setShowCompletedReminders(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_COMPLETED_REMINDERS, show).apply()
+    }
+
+    // Snooze options settings (Sprint 15)
+
+    fun getEnabledSnoozeOptions(): Set<String> {
+        val raw = prefs.getString(KEY_ENABLED_SNOOZE_OPTIONS, null) ?: return getDefaultEnabledSnoozeOptions()
+        if (raw.isBlank()) return getDefaultEnabledSnoozeOptions()
+        return raw.split(",").mapNotNull { it.trim().takeIf { it.isNotEmpty() } }.toSet()
+    }
+
+    fun setEnabledSnoozeOptions(options: Set<String>) {
+        prefs.edit().putString(KEY_ENABLED_SNOOZE_OPTIONS, options.joinToString(",")).apply()
+    }
+
+    private fun getDefaultEnabledSnoozeOptions(): Set<String> {
+        return setOf("15_min", "1_hour", "personalizar")
     }
 }

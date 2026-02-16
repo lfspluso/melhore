@@ -207,16 +207,157 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 10 – Documentation and release prep *(to be implemented)*
+## Sprint 10 – UI Improvements: Filter/Sort Toggle & Default Dark Mode
 
-**Goal:** Docs and release readiness.
+**Goal:** Advanced filters hidden by default; sort always visible; app launches in dark mode.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | Hand off to a new developer (or follow docs yourself): open project, read README and `docs/`. | They can understand structure, run the app, and run tests from the docs. |
-| 2 | Run any automated tests (if added). | Tests pass. |
+| 1 | Launch the app (fresh install or cleared data). | App opens in **dark mode** (dark background, light text). |
+| 2 | On the reminder list screen, observe the filter/sort area. | **Sort row** ("Ordenar: Por data, Por prioridade...") is **always visible**. |
+| 3 | Look for "Filtros avançados" toggle button above the sort row. | Toggle button is visible. |
+| 4 | With toggle collapsed (default), check what is shown. | Only sort row is visible; filter row and group-by row are **hidden**. |
+| 5 | Tap "Filtros avançados" to expand. | Filter row (tags, priorities, date ranges) and group-by row appear. |
+| 6 | Tap again to collapse. | Filter and group-by rows hide again; sort row remains visible. |
+| 7 | Expand filters, set a filter (e.g. select a tag), collapse filters, then force stop and relaunch app. | App opens in dark mode; sort row visible; toggle is collapsed; filter is still applied (even though filter row is hidden). |
+| 8 | Expand filters again. | Filter row shows the previously selected tag. |
+| 9 | Check default sort when no preference saved (clear app data, launch). | Sort defaults to "Por data" (closest to notify first). |
 
-**Validation:** Onboarding and tests are possible using the documentation and project as-is.
+**Validation:** Advanced filters are hidden by default; sort is always visible; app launches in dark mode; filter/sort preferences persist; toggle state persists.
+
+---
+
+## Sprint 11 – Extended Recurrence Types (Biweekly & Monthly)
+
+**Goal:** Add biweekly and monthly recurrence options to reminders.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | On the add reminder screen, open the **Repetir** (Repeat) dropdown. | Dropdown shows options: "Nenhuma", "Diário", "Semanal", **"Quinzenal"**, **"Mensal"**. |
+| 2 | Select **"Quinzenal"** (biweekly) and save a reminder for 1–2 minutes from now. | Reminder is saved; list shows recurrence label **"Quinzenal"**. |
+| 3 | Wait until the reminder fires (notification appears). | Notification appears at due time. |
+| 4 | Wait for the next occurrence (2 weeks later) or advance time in tests. | A notification is shown at the next occurrence (2 weeks after the first). |
+| 5 | Create a new reminder with **"Mensal"** (monthly) recurrence, set for a date near month end (e.g., Jan 31, Feb 28). | Reminder is saved; list shows recurrence label **"Mensal"**. |
+| 6 | Verify monthly recurrence handles edge cases: | |
+| 6a | If reminder is set for Jan 31, next occurrence should be Feb 28 (or Feb 29 in leap year). | Next occurrence correctly falls on Feb 28/29 (Java Time handles this automatically). |
+| 6b | If reminder is set for Feb 28, next occurrence should be Mar 28. | Next occurrence correctly falls on Mar 28. |
+| 7 | On the reminder list, verify recurrence labels display correctly. | Reminders with biweekly recurrence show **"Quinzenal"**; monthly reminders show **"Mensal"**. |
+| 8 | Create a biweekly reminder, force stop the app, then wait for the next occurrence. | Reminder still fires correctly after app restart (boot reschedule handles it). |
+
+**Validation:** Biweekly reminders fire every 2 weeks correctly; monthly reminders fire every month and handle variable month lengths (Jan 31 → Feb 28/29, Feb 28 → Mar 28, etc.); UI dropdown shows new options; reminder list displays correct labels; scheduling reschedules correctly for new types.
+
+---
+
+## Sprint 11.5 – Next Notification Date Display & Auto-Delete Setting
+
+**Goal:** Display next notification date for each Melhore (or "MELHORADO" for completed non-recurring reminders) and add setting to auto-delete completed non-recurring reminders.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | On the reminder list, observe the date shown for each reminder. | Date shown is the **next notification date** (not the original dueAt). |
+| 2 | Create a non-recurring reminder for 1–2 minutes from now. Wait until it fires (notification appears). | Reminder list shows **"MELHORADO"** instead of a date for this reminder (since it's past due and non-recurring). |
+| 3 | Create a recurring reminder (e.g. daily) for 1–2 minutes from now. Wait until it fires. | Reminder list shows the **calculated next occurrence date** (e.g. tomorrow for daily). |
+| 4 | Create a reminder and snooze it (tap snooze option on notification). | Reminder list shows the **snooze time** as the next notification date. |
+| 5 | Open **Settings** screen. Scroll to "Lembretes" section. | Section shows toggle "Excluir automaticamente lembretes concluídos sem recorrência". |
+| 6 | Enable the auto-delete toggle. | If there are any past non-recurring reminders, they are **immediately deleted** from the list. |
+| 7 | Create a non-recurring reminder for 1–2 minutes from now. Wait until it fires. | After notification appears, the reminder is **automatically deleted** from the list (if auto-delete is enabled). |
+| 8 | Disable the auto-delete toggle. Create a non-recurring reminder for 1–2 minutes from now. Wait until it fires. | Reminder remains in the list (shows "MELHORADO") and is not deleted. |
+| 9 | Force stop app and relaunch with auto-delete enabled. | Auto-delete setting persists (toggle remains enabled). |
+
+**Validation:** Reminder list shows next notification date (or "MELHORADO" for completed non-recurring); snoozed reminders show snooze time; recurring reminders show calculated next occurrence; auto-delete setting works and persists; when enabled, non-recurring reminders are deleted after notification fires and all past non-recurring reminders are deleted immediately.
+
+---
+
+## Sprint 12 – Routine Type for Melhores *(to be implemented)*
+
+**Goal:** Add Routine type that directs users to set up tasks when triggered.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | On add reminder screen, open **Repetir** (Repeat) dropdown. | Dropdown shows **"Rotina"** option (in addition to existing options). |
+| 2 | Select **"Rotina"** and save a reminder for 1–2 minutes from now. | Reminder is saved; list shows recurrence label **"Rotina"**. |
+| 3 | Wait until the reminder fires (notification appears). | Notification appears at due time. |
+| 4 | Tap the Routine reminder notification. | App opens and navigates to task setup screen (or appropriate screen for setting up tasks for the day). |
+
+**Validation:** Routine option appears in dropdown; Routine reminders can be created; notification fires correctly; tapping notification navigates to task setup.
+
+---
+
+## Sprint 13 – Snooze/Completion Logic for Melhores
+
+**Goal:** Melhores never deactivate themselves; users can mark as complete (with confirmation), snooze, or cancel. Reminders notify every 30 minutes until completed or cancelled.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a reminder for 1–2 minutes from now. Wait until it fires (notification appears). | Notification appears at due time. |
+| 2 | Wait 30 minutes (or advance time in tests). | Another notification appears 30 minutes after the first. |
+| 3 | Continue waiting (or advance time). | Notifications continue every 30 minutes. |
+| 4 | On the reminder list, tap the checkmark icon on an ACTIVE reminder. | Confirmation dialog appears: "Você tem certeza?" with "Sim" and "Cancelar" buttons. |
+| 5 | Tap "Sim" in the confirmation dialog. | Reminder is marked as COMPLETED; UI updates to low-contrast, shows "MELHORADO" tag, delete button appears, checkmark button disappears. |
+| 6 | Wait 30 minutes after completion. | No more notifications appear for the completed reminder. |
+| 7 | Tap "Cancelar" in the confirmation dialog (if you didn't complete). | Dialog dismisses; reminder remains ACTIVE. |
+| 8 | Open an existing reminder for editing (tap the reminder card). | Edit screen opens. |
+| 9 | On the edit screen, tap "Cancelar melhore" button. | Confirmation dialog appears: "Você tem certeza que deseja cancelar este melhore?" |
+| 10 | Tap "Sim" in cancellation confirmation. | Reminder is marked as CANCELLED; app navigates back to list; reminder shows "CANCELADO" tag. |
+| 11 | On the reminder list, expand "Filtros avançados". | Filter row shows "Mostrar concluídos" chip. |
+| 12 | Tap "Mostrar concluídos" to deselect it. | Completed reminders disappear from the list. |
+| 13 | Tap "Mostrar concluídos" again to select it. | Completed reminders reappear in the list. |
+| 14 | Force stop app and relaunch. | Filter preference persists (completed reminders shown/hidden based on last setting). |
+| 15 | Open Settings screen. Scroll to "Lembretes" section. | Section shows toggle "Excluir automaticamente após conclusão" with description "Remove automaticamente melhores marcados como concluídos". |
+| 16 | Enable the "Excluir automaticamente após conclusão" toggle. | If there are any COMPLETED reminders, they are immediately deleted from the list. |
+| 17 | Mark a reminder as complete (with confirmation). | Reminder is immediately deleted (if auto-delete is enabled). |
+| 18 | Disable the auto-delete toggle. Mark a reminder as complete. | Reminder remains in the list (shows "MELHORADO") and is not deleted. |
+| 19 | Create a recurring reminder (e.g. daily) for 1–2 minutes from now. Wait until it fires. | Notification appears at due time. |
+| 20 | Wait 30 minutes. | Another notification appears (30-minute reminder). |
+| 21 | Wait until the next occurrence (e.g. next day for daily). | Notification appears at the next occurrence. |
+| 22 | Mark the recurring reminder as complete. | Reminder is marked as COMPLETED; no more notifications appear. |
+| 23 | Snooze a reminder notification (tap snooze option on notification). | Reminder is snoozed; list shows snooze time as next notification date. |
+| 24 | Wait until snooze time. | Notification appears at snooze time. |
+| 25 | After snooze notification, wait 30 minutes. | Another notification appears (30-minute reminder continues). |
+
+**Validation:** Melhores never deactivate themselves; users can mark as complete (with confirmation), snooze, or cancel; reminders notify every 30 minutes until completed/cancelled; completed reminders show low-contrast styling and "MELHORADO" tag; delete button appears only for completed reminders; cancellation works from edit screen; filter to show/hide completed works and persists; auto-delete setting only deletes COMPLETED reminders; 30-minute notifications work for both one-time and recurring reminders.
+
+---
+
+## Sprint 14 – New Snooze Options
+
+**Goal:** New snooze options: "Fazendo" (1-hour follow-up with completion check), "15 minutos", "1 hora", and "Personalizar" (custom duration). Old options (5 min, 1 day) removed.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows snooze actions: **"15 minutos"**, **"1 hora"**, **"Personalizar"** (old options "5 min" and "1 dia" are not shown; "Fazendo" is not shown in regular notifications). |
+| 2 | Tap **"15 minutos"** on the notification. | Current notification is dismissed; a new notification appears **15 minutes later**. |
+| 3 | Create another reminder for 1–2 minutes from now. Wait until notification appears. Tap **"1 hora"**. | Current notification is dismissed; a new notification appears **1 hour later**. |
+| 4 | (Note: "Fazendo" is not shown in regular notifications due to Android's 3-action limit. It can be accessed via other means if needed.) | |
+| 5 | Wait **1 hour** after tapping "Fazendo". | A follow-up notification appears with message: **"Você estava fazendo {task name}, você completou?"** |
+| 6 | On the follow-up notification, observe the actions. | Follow-up notification shows actions: **"Sim"**, **"+15 min"**, **"+1 hora"**, **"Personalizar"**. |
+| 7 | Tap **"Sim"** on the follow-up notification. | Reminder is marked as **COMPLETED**; reminder list shows "MELHORADO" tag; no more notifications appear for this reminder. |
+| 8 | Create another reminder, tap "Fazendo", wait 1 hour. On follow-up, tap **"+15 min"**. | Reminder is snoozed for 15 minutes; a new notification appears 15 minutes later. |
+| 9 | Create another reminder, tap "Fazendo", wait 1 hour. On follow-up, tap **"+1 hora"**. | Reminder is snoozed for 1 hour; a new notification appears 1 hour later. |
+| 10 | Tap **"Personalizar"** on a regular notification or follow-up. | For Sprint 14, uses default duration (15 min) or shows placeholder behavior. |
+| 11 | Force stop app and relaunch with active "Fazendo" follow-up scheduled. | Follow-up notification still fires at scheduled time after app restart. |
+
+**Validation:** New snooze options ("15 minutos", "1 hora", "Personalizar") work correctly in regular notifications; "Fazendo" follow-up flow works correctly with completion check message; follow-up notification has correct actions; "Sim" marks reminder as COMPLETED; old snooze options removed; all functionality persists across app restarts.
+
+---
+
+## Sprint 15 – Snooze Options Settings
+
+**Goal:** Add settings UI to customize which snooze options appear in reminder notifications.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Open **Settings** screen. Scroll to "Notificações" section. | Section shows "Duração padrão do adiamento" and new section **"Opções de adiamento"**. |
+| 2 | In "Opções de adiamento" section, observe the checkboxes. | Checkboxes shown for: **"15 minutos"**, **"1 hora"**, **"Personalizar"**. All are checked (enabled) by default. |
+| 3 | Uncheck **"1 hora"**. | Checkbox becomes unchecked. |
+| 4 | Create a reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"15 minutos"** and **"Personalizar"** actions (no "1 hora" action). |
+| 5 | Go back to Settings and check **"1 hora"** again. Uncheck **"Personalizar"**. | "1 hora" becomes checked; "Personalizar" becomes unchecked. |
+| 6 | Create another reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"15 minutos"** and **"1 hora"** actions (no "Personalizar" action). |
+| 7 | Try to uncheck all options in Settings. | At least one option must remain checked (validation prevents disabling all options). |
+| 8 | Force stop app and relaunch. Go to Settings. | Previously selected snooze options are still set (preferences persist). |
+| 9 | Create a reminder and check notification. | Notification shows only the enabled snooze options from Settings. |
+
+**Validation:** Settings screen shows "Opções de adiamento" section; user can enable/disable each snooze option; enabled options persist across restarts; reminder notifications only show enabled options; at least one option must be enabled; default: all options enabled.
 
 ---
 
@@ -233,9 +374,33 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 7:** Group by tag (and flat list) work; sections labeled.
 - **Sprint 8:** Templates coming-soon screen reachable from Reminders app bar (Modelos de lembretes) and clear.
 - **Sprint 9:** Integrações tab; at least one integration path works.
-- **Sprint 10:** Docs support onboarding and tests.
+- **Sprint 10:** Advanced filters toggle; dark mode by default; sort always visible.
+- **Sprint 11:** Extended recurrence types (biweekly, monthly) work correctly.
+- **Sprint 11.5:** Next notification date display; auto-delete setting works.
+- **Sprint 12:** (Future) Routine type for Melhores.
+- **Sprint 13:** Snooze/completion logic; marking as complete/cancelled; 30-minute notifications; completed filter.
+- **Sprint 14:** New snooze options ("15 minutos", "1 hora", "Personalizar"); "Fazendo" follow-up with completion check.
+- **Sprint 15:** Snooze options settings; customize which options appear in notifications.
+- **Sprint 16:** (Future) Authentication foundation.
+- **Sprint 17:** (Future) Database migration & user scoping.
+- **Sprint 18:** (Future) Cloud sync implementation.
+- **Sprint 19:** (Future) Data migration & sync polish.
+- **Sprint 20:** (Future) Documentation and release prep.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.
+
+---
+
+## Sprint 20 – Documentation and release prep *(to be implemented)*
+
+**Goal:** Docs and release readiness.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Hand off to a new developer (or follow docs yourself): open project, read README and `docs/`. | They can understand structure, run the app, and run tests from the docs. |
+| 2 | Run any automated tests (if added). | Tests pass. |
+
+**Validation:** Onboarding and tests are possible using the documentation and project as-is.
 
 ---
 

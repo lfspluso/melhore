@@ -3,5 +3,7 @@ package com.melhoreapp.core.database.entity
 enum class RecurrenceType {
     NONE,
     DAILY,
-    WEEKLY
+    WEEKLY,
+    BIWEEKLY,
+    MONTHLY
 }

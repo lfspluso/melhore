@@ -29,14 +29,16 @@ class ReminderScheduler(
         triggerAtMillis: Long,
         title: String,
         notes: String,
-        isSnoozeFire: Boolean = false
+        isSnoozeFire: Boolean = false,
+        requestCodeOffset: Int = 0,
+        isFazendoFollowup: Boolean = false
     ) {
         try {
             val triggerTime = triggerAtMillis.coerceAtLeast(System.currentTimeMillis() + MIN_FUTURE_MS)
-            val intent = alarmIntent(reminderId, title, notes, isSnoozeFire)
+            val intent = alarmIntent(reminderId, title, notes, isSnoozeFire, isFazendoFollowup)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                reminderId.toInt(),
+                reminderId.toInt() + requestCodeOffset,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -82,6 +84,15 @@ class ReminderScheduler(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(mainPending)
+        // Cancel 30-minute reminder
+        val thirtyMinIntent = alarmIntent(reminderId, "", "", isSnoozeFire = false)
+        val thirtyMinPending = PendingIntent.getBroadcast(
+            context,
+            reminderId.toInt() + THIRTY_MIN_REMINDER_OFFSET,
+            thirtyMinIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(thirtyMinPending)
         for (index in 0 until SNOOZE_PRESET_COUNT) {
             val snoozeIntent = Intent(context, SnoozeReceiver::class.java).apply {
                 action = SnoozeReceiver.ACTION_SNOOZE_REMINDER
@@ -142,17 +153,21 @@ class ReminderScheduler(
         return triggerAt
     }
 
-    private fun alarmIntent(reminderId: Long, title: String, notes: String, isSnoozeFire: Boolean): Intent {
+    private fun alarmIntent(reminderId: Long, title: String, notes: String, isSnoozeFire: Boolean, isFazendoFollowup: Boolean = false): Intent {
         return Intent(context, ReminderAlarmReceiver::class.java).apply {
             putExtra(ReminderAlarmReceiver.EXTRA_REMINDER_ID, reminderId)
             putExtra(ReminderAlarmReceiver.EXTRA_TITLE, title)
             putExtra(ReminderAlarmReceiver.EXTRA_NOTES, notes.ifEmpty() { "Reminder" })
             putExtra(ReminderAlarmReceiver.EXTRA_IS_SNOOZE_FIRE, isSnoozeFire)
+            putExtra(ReminderAlarmReceiver.EXTRA_IS_FAZENDO_FOLLOWUP, isFazendoFollowup)
         }
     }
 
-    private companion object {
-        const val MIN_FUTURE_MS = 1000L
-        const val TAG = "ReminderScheduler"
+    companion object {
+        // Offset for 30-minute recurring reminders (different from main reminder alarm)
+        const val THIRTY_MIN_REMINDER_OFFSET = 2_000_000
+        
+        private const val MIN_FUTURE_MS = 1000L
+        private const val TAG = "ReminderScheduler"
     }
 }

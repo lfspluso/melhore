@@ -16,10 +16,10 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE id = :id")
     suspend fun getReminderById(id: Long): ReminderEntity?
 
-    @Query("SELECT * FROM reminders WHERE isActive = 1 AND dueAt > :afterMillis ORDER BY dueAt ASC")
+    @Query("SELECT * FROM reminders WHERE status = 'ACTIVE' AND dueAt > :afterMillis ORDER BY dueAt ASC")
     suspend fun getUpcomingActiveReminders(afterMillis: Long): List<ReminderEntity>
 
-    @Query("SELECT * FROM reminders WHERE isActive = 1 ORDER BY dueAt ASC")
+    @Query("SELECT * FROM reminders WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
     suspend fun getActiveReminders(): List<ReminderEntity>
 
     @Query("SELECT * FROM reminders WHERE listId = :listId ORDER BY dueAt ASC")

@@ -5,8 +5,13 @@
     <string name="channel_snoozed_name">Adiados</string>
     <string name="channel_snoozed_desc">Notificações de melhores adiados</string>
     <string name="notification_action_snooze">Adiar</string>
-    <string name="snooze_5_min">5 min</string>
-    <string name="snooze_15_min">15 min</string>
-    <string name="snooze_1_hour">1 h</string>
-    <string name="snooze_1_day">1 dia</string>
+    <string name="snooze_fazendo">Fazendo</string>
+    <string name="snooze_15_min">15 minutos</string>
+    <string name="snooze_1_hour">1 hora</string>
+    <string name="snooze_personalizar">Personalizar</string>
+    <string name="fazendo_followup_message">Você estava fazendo %1$s, você completou?</string>
+    <string name="fazendo_complete">Sim</string>
+    <string name="fazendo_snooze_15_min">+15 min</string>
+    <string name="fazendo_snooze_1_hour">+1 hora</string>
+    <string name="fazendo_snooze_personalizar">Personalizar</string>
 </resources>

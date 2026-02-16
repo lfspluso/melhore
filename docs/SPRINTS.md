@@ -226,7 +226,631 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 10 – Documentation and release prep
+## Sprint 10 – UI Improvements: Filter/Sort Toggle & Default Dark Mode
+
+**Goal:** Improve filter/sort UX with collapsible advanced filters and set minimalistic dark mode as default.
+
+**Deliverables:**
+
+- **feature:reminders:** Add "Filtros avançados" toggle button in `ReminderListScreen`; when collapsed, show only sort chips; when expanded, show sort + filter rows + group-by row.
+- **core:common (AppPreferences):** Add `showAdvancedFilters: Boolean` preference; persist and restore on app start.
+- **app/ui/theme:** Update `MelhoreAppTheme` to default to `darkTheme = true` (was `isSystemInDarkTheme()`); create minimalistic dark color scheme with muted colors.
+- Default sort: `DUE_DATE_ASC` (closest to notify first) when no saved preference.
+
+**Implementation details:**
+
+- **ReminderListScreen.kt:**
+  - Add `showAdvancedFilters: Boolean` state (default `false`)
+  - Add toggle button "Filtros avançados" above sort row
+  - Conditionally show `ReminderFilterRow` and `ReminderGroupByRow` only when `showAdvancedFilters = true`
+  - Always show `ReminderSortRow` (sort options always visible)
+- **ReminderListViewModel.kt:**
+  - Add `showAdvancedFilters: StateFlow<Boolean>`
+  - Load from `AppPreferences.getShowAdvancedFilters()` on init
+  - Persist on toggle change
+  - Update `loadInitialSortOrder()` to return `DUE_DATE_ASC` if no saved preference
+- **AppPreferences.kt:**
+  - Add `KEY_SHOW_ADVANCED_FILTERS = "show_advanced_filters"`
+  - Add `getShowAdvancedFilters(): Boolean` (default `false`)
+  - Add `setShowAdvancedFilters(show: Boolean)`
+- **Theme.kt:**
+  - Change `MelhoreAppTheme(darkTheme: Boolean = true, ...)` (was `isSystemInDarkTheme()`)
+  - Update `DarkColorScheme` with minimalistic colors:
+    - `primary = Color(0xFF6B9BD2)` (muted blue-gray)
+    - `secondary = Color(0xFF8FA8B8)` (subtle gray-blue)
+    - `tertiary = Color(0xFF9E9E9E)` (neutral gray)
+    - `surface = Color(0xFF121212)` (near-black)
+    - `background = Color(0xFF000000)` (true black)
+    - `onSurface = Color(0xFFE0E0E0)` (light gray)
+    - `onBackground = Color(0xFFE0E0E0)`
+
+**Done criteria:**
+
+- [ ] Toggle "Filtros avançados" hides/shows advanced filters
+- [ ] Sort row always visible
+- [ ] Default sort is "Por data" (closest first) when no preference saved
+- [ ] App launches in dark mode by default
+- [ ] Dark theme uses minimalistic muted colors
+- [ ] Filter/sort preferences persist across restarts
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 10 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 11 – Extended Recurrence Types (Biweekly & Monthly)
+
+**Goal:** Add biweekly and monthly recurrence options to reminders.
+
+**Deliverables:**
+
+- **core:database:** Add `BIWEEKLY` and `MONTHLY` to `RecurrenceType` enum.
+- **core:scheduling:** Update `RecurrenceHelper.nextOccurrenceMillis()` to handle `BIWEEKLY` (add 2 weeks) and `MONTHLY` (add 1 month, handles variable month lengths).
+- **feature:reminders:** Update recurrence dropdown in `AddReminderScreen` to show "Quinzenal" (biweekly) and "Mensal" (monthly); update reminder list item display to show recurrence labels.
+
+**Implementation details:**
+
+- **RecurrenceType.kt:**
+  ```kotlin
+  enum class RecurrenceType {
+      NONE,
+      DAILY,
+      WEEKLY,
+      BIWEEKLY,  // New
+      MONTHLY    // New
+  }
+  ```
+- **RecurrenceHelper.kt:**
+  - Add cases for `BIWEEKLY` and `MONTHLY` in `nextOccurrenceMillis()`:
+    - `BIWEEKLY`: `instant.plusWeeks(2)`
+    - `MONTHLY`: `instant.plusMonths(1)` (Java Time handles variable month lengths automatically)
+  - Ensure loop advances until future time (same pattern as DAILY/WEEKLY)
+- **AddReminderScreen.kt:**
+  - Update recurrence dropdown options:
+    - "Nenhuma" → `RecurrenceType.NONE`
+    - "Diária" → `RecurrenceType.DAILY`
+    - "Semanal" → `RecurrenceType.WEEKLY`
+    - "Quinzenal" → `RecurrenceType.BIWEEKLY` (new)
+    - "Mensal" → `RecurrenceType.MONTHLY` (new)
+- **ReminderListScreen.kt (ReminderItem):**
+  - Update recurrence label display:
+    - `RecurrenceType.BIWEEKLY` → "Quinzenal"
+    - `RecurrenceType.MONTHLY` → "Mensal"
+
+**Done criteria:**
+
+- [x] Biweekly reminders fire every 2 weeks correctly
+- [x] Monthly reminders fire every month (handles Feb 28→Mar 28, Jan 31→Feb 28, etc.)
+- [x] UI dropdown shows new options
+- [x] Reminder list displays recurrence labels correctly
+- [x] Scheduling works for new types (alarms reschedule correctly)
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 11 section).
+
+**Status:** Done.
+
+**Lessons learned:** Changing `ReminderAlarmReceiver` to check `!= NONE` instead of explicitly listing `DAILY || WEEKLY` future-proofs the code for any additional recurrence types. Java Time's `plusMonths()` automatically handles variable month lengths (e.g., Jan 31 → Feb 28/29, Feb 28 → Mar 28), eliminating the need for manual edge case handling. No database migration was required since Room stores enum values as strings/integers.
+
+---
+
+## Sprint 11.5 – Next Notification Date Display & Auto-Delete Setting
+
+**Goal:** Display the next notification date for each Melhore (or "MELHORADO" for completed non-recurring reminders) and add a setting to auto-delete completed non-recurring reminders.
+
+**Deliverables:**
+
+- **feature:reminders/ui/list/ReminderListScreen.kt:**
+  - Update `ReminderItem` composable to calculate and display next notification date instead of raw `dueAt`
+  - Logic:
+    - If `snoozedUntil` is set and in the future → show `snoozedUntil` formatted
+    - If recurring (`type != NONE`) → calculate next occurrence using `RecurrenceHelper.nextOccurrenceMillis(dueAt, type)` and show formatted date
+    - If non-recurring (`type == NONE`):
+      - If `dueAt` is in the past → show "MELHORADO"
+      - If `dueAt` is in the future → show formatted `dueAt`
+  - Create helper function `getNextNotificationDate(reminder: ReminderEntity): Pair<Long?, String>` that returns (timestamp, displayText)
+
+- **core:common/preferences/AppPreferences.kt:**
+  - Add `KEY_AUTO_DELETE_COMPLETED_REMINDERS = "auto_delete_completed_reminders"`
+  - Add `getAutoDeleteCompletedReminders(): Boolean` (default `false`)
+  - Add `setAutoDeleteCompletedReminders(enabled: Boolean)`
+
+- **feature:settings/ui/SettingsScreen.kt:**
+  - Add new section "Lembretes" with toggle "Excluir automaticamente lembretes concluídos sem recorrência"
+  - Use `Switch` component for the toggle
+
+- **feature:settings/ui/SettingsViewModel.kt:**
+  - Add `autoDeleteCompletedReminders: StateFlow<Boolean>`
+  - Add `setAutoDeleteCompletedReminders(enabled: Boolean)`
+  - Load initial value from `AppPreferences` on init
+  - When user enables auto-delete toggle:
+    - Delete all existing non-recurring reminders where `dueAt < now` and `type == NONE`
+    - Cancel alarms for deleted reminders via `ReminderScheduler`
+
+- **core:scheduling/ReminderAlarmReceiver.kt:**
+  - After showing notification, if reminder is non-recurring (`type == NONE`):
+    - Check `AppPreferences.getAutoDeleteCompletedReminders()`
+    - If enabled, delete the reminder: `app.database.reminderDao().deleteById(reminderId)`
+    - Cancel any scheduled alarms: `app.reminderScheduler.cancelReminder(reminderId)`
+    - Don't reschedule (return early)
+
+**Done criteria:**
+
+- [ ] Reminder list shows next notification date (or "MELHORADO" for completed non-recurring)
+- [ ] Snoozed reminders show snooze time as next notification
+- [ ] Recurring reminders show calculated next occurrence
+- [ ] Settings screen has auto-delete toggle
+- [ ] When enabled, non-recurring reminders are deleted after notification fires
+- [ ] When enabled, all past non-recurring reminders are deleted immediately
+- [ ] Setting persists across app restarts
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 11.5 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 12 – Routine Type for Melhores
+
+**Goal:** Add a new Melhore type called "Routine" (Rotine) that directs users to set up tasks for the day when triggered.
+
+**Deliverables:**
+
+- **core:database/entity/RecurrenceType.kt:**
+  - Add `ROUTINE` to `RecurrenceType` enum
+
+- **feature:reminders/ui/addedit/AddReminderScreen.kt:**
+  - Update recurrence dropdown to show "Rotina" option (maps to `RecurrenceType.ROUTINE`)
+  - Update recurrence label display to show "Rotina" for Routine type
+
+- **core:scheduling/ReminderAlarmReceiver.kt:**
+  - Handle Routine type - when fired, set intent flag or use notification action to navigate to task setup
+  - Routine reminders behave similarly to one-time reminders but with special action on notification tap
+
+- **app/ui/navigation/MelhoreNavHost.kt:**
+  - Add deep link or navigation action for Routine reminder tap
+  - When Routine reminder notification is tapped, navigate user to app (or specific screen) to set up tasks for the day
+
+- **core:scheduling/RecurrenceHelper.kt:**
+  - Update `nextOccurrenceMillis()` to handle `ROUTINE` type (similar to `NONE` - no automatic recurrence, but can be manually rescheduled)
+
+**Implementation details:**
+
+- **RecurrenceType.kt:**
+  ```kotlin
+  enum class RecurrenceType {
+      NONE,
+      DAILY,
+      WEEKLY,
+      BIWEEKLY,
+      MONTHLY,
+      ROUTINE  // New
+  }
+  ```
+- **AddReminderScreen.kt:**
+  - Update recurrence dropdown options:
+    - "Rotina" → `RecurrenceType.ROUTINE` (new)
+- **ReminderAlarmReceiver.kt:**
+  - When Routine reminder fires, notification tap should navigate to task setup screen
+  - Use notification intent extras or deep link to identify Routine type and trigger navigation
+- **RecurrenceHelper.kt:**
+  - `ROUTINE` case: return `null` (no automatic next occurrence, but reminder can be manually rescheduled)
+
+**Done criteria:**
+
+- [ ] Routine option appears in recurrence dropdown
+- [ ] Routine reminders can be created and saved
+- [ ] When Routine reminder fires, notification appears
+- [ ] Tapping Routine notification navigates user to task setup screen
+- [ ] Routine reminders show "Rotina" label in reminder list
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 13 – Snooze/Completion Logic for Melhores
+
+**Goal:** Implement comprehensive snooze/completion logic where Melhores never deactivate themselves. Users can mark reminders as complete (with confirmation), snooze them, or cancel them. Melhores remind users every 30 minutes until manually completed or cancelled.
+
+**Deliverables:**
+
+- **core:database:** Add `ReminderStatus` enum (ACTIVE, COMPLETED, CANCELLED); update `ReminderEntity` with `status` field; database migration 2→3.
+- **core:scheduling:** Remove auto-deactivation logic; implement 30-minute recurring notifications for ACTIVE reminders; update `ReminderAlarmReceiver` to schedule next notification every 30 minutes.
+- **feature:reminders:** Add completion flow with confirmation modal ("Você tem certeza?"); update UI to show completed reminders with low-contrast styling, "MELHORADO" tag, and delete button only when completed; add cancellation option in edit screen with confirmation; add filter option to show/hide completed reminders.
+- **feature:settings:** Rework auto-delete setting to "delete after completion" (only deletes COMPLETED reminders, not just notified ones).
+
+**Done criteria:**
+
+- [x] ReminderStatus enum created and ReminderEntity updated with status field
+- [x] Database migration 2→3 successfully migrates existing data
+- [x] Auto-deactivation logic removed from ReminderAlarmReceiver
+- [x] Users can mark reminders as complete with confirmation modal
+- [x] Completed reminders show low-contrast styling, "MELHORADO" tag, and delete button
+- [x] Users can cancel reminders from edit screen with confirmation
+- [x] Cancelled reminders show "CANCELADO" tag
+- [x] Reminders notify every 30 minutes until completed or cancelled
+- [x] Filter option to show/hide completed reminders works and persists
+- [x] Auto-delete setting reworked to only delete COMPLETED reminders
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 13 section).
+
+**Status:** Done.
+
+**Lessons learned:** Using ReminderStatus enum instead of boolean `isActive` provides clearer semantics and better extensibility. The 30-minute notification logic ensures reminders persist until explicitly completed or cancelled, improving user engagement. The completion confirmation modal prevents accidental completions. Filter persistence for completed reminders improves UX by allowing users to hide completed items while keeping them accessible.
+
+---
+
+## Sprint 14 – New Snooze Options
+
+**Goal:** Implement new snooze options: "Fazendo" (1-hour follow-up with completion check), "15 minutos", "1 hora", and "Personalizar" (custom duration). Replace old snooze options (5 min, 1 day).
+
+**Deliverables:**
+
+- **core:scheduling:** Update snooze options to "Fazendo", "15 min", "1 hora", "Personalizar"; implement "Fazendo" special flow with 1-hour follow-up notification asking "Você estava fazendo {task name}, você completou?"; create `CompletionCheckReceiver` to handle completion and snooze actions from follow-up notification.
+- **core:notifications:** Add method to show completion check notification with custom message; add new string resources for snooze options and follow-up messages.
+- **feature:settings:** (Optional for Sprint 14) Add UI to customize snooze options. If too complex, defer to Sprint 15.
+
+**Implementation details:**
+
+- **SnoozeReceiver.kt:**
+  - Update `SNOOZE_DURATIONS_MS` to: 15 min, 1 hour (remove 5 min, 1 day)
+  - Update `SNOOZE_PRESET_COUNT` to 4
+  - Add special handling for "Fazendo" action (`EXTRA_IS_FAZENDO` flag)
+  - When "Fazendo" selected, schedule special follow-up notification in 1 hour with `isFazendoFollowup=true`
+  - Handle "Personalizar" action (`EXTRA_IS_CUSTOM` flag) - for Sprint 14, use default duration (15 min) or placeholder
+- **ReminderAlarmReceiver.kt:**
+  - Update snooze actions to show: "Fazendo", "15 min", "1 hora", "Personalizar"
+  - Add special handling for "Fazendo" follow-up notifications
+  - When follow-up fires (`isFazendoFollowup=true`), show notification: "Você estava fazendo {title}, você completou?"
+  - Follow-up notification actions: "Sim" (mark complete), "+15 min", "+1 hora", "Personalizar"
+- **CompletionCheckReceiver.kt (new):**
+  - Handle "Sim" action from follow-up notification → mark reminder as COMPLETED
+  - Cancel all scheduled alarms for completed reminder
+  - Handle "+15 min", "+1 hora", "Personalizar" actions from follow-up → snooze with respective durations
+- **NotificationHelper.kt:**
+  - Add `showCompletionCheckNotification()` method for "Fazendo" follow-up
+  - Support different notification text for completion check vs regular reminder
+- **strings.xml:**
+  - Add: `snooze_fazendo`, `snooze_15_min`, `snooze_1_hour`, `snooze_personalizar`
+  - Add: `fazendo_followup_message`, `fazendo_complete`, `fazendo_snooze_15_min`, `fazendo_snooze_1_hour`, `fazendo_snooze_personalizar`
+
+**Done criteria:**
+
+- [x] "Fazendo" option schedules 1-hour follow-up notification
+- [x] Follow-up notification shows completion check message: "Você estava fazendo {task name}, você completou?"
+- [x] Follow-up notification has "Sim", "+15 min", "+1 hora", "Personalizar" actions
+- [x] "Sim" marks reminder as COMPLETED
+- [x] "+15 min" and "+1 hora" snooze options work from follow-up
+- [x] "15 minutos" and "1 hora" snooze options work from regular notification
+- [x] "Personalizar" uses default duration (15 min) or placeholder
+- [x] Old snooze options ("5 min", "1 dia") removed
+- [x] String resources added
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 14 section).
+
+**Status:** Done.
+
+**Lessons learned:** Android notifications have a hard limit of 3 visible actions. We show "15 minutos", "1 hora", and "Personalizar" in regular notifications. "Fazendo" was removed from regular notification actions but remains available via the follow-up flow. The "Fazendo" follow-up notification shows all 4 actions ("Sim", "+15 min", "+1 hora", "Personalizar") and works correctly.
+
+---
+
+## Sprint 15 – Snooze Options Settings
+
+**Goal:** Add settings UI to customize snooze options shown in reminder notifications.
+
+**Deliverables:**
+
+- **feature:settings:** Add UI section to enable/disable and customize snooze options (15 minutos, 1 hora, Personalizar).
+- **core:common (AppPreferences):** Add preferences to store enabled snooze options.
+- **core:scheduling:** Update `ReminderAlarmReceiver` to read enabled snooze options from preferences and only show enabled options in notifications.
+
+**Implementation details:**
+
+- **AppPreferences.kt:**
+  - Add `KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"`
+  - Add `getEnabledSnoozeOptions(): Set<String>` (returns set of enabled option keys: "15_min", "1_hour", "personalizar")
+  - Add `setEnabledSnoozeOptions(options: Set<String>)`
+  - Default: all options enabled
+- **SettingsViewModel.kt:**
+  - Add `enabledSnoozeOptions: StateFlow<Set<String>>`
+  - Add `setSnoozeOptionEnabled(option: String, enabled: Boolean)`
+  - Load from `AppPreferences` on init
+  - Persist on change
+- **SettingsScreen.kt:**
+  - Add new section "Opções de adiamento" under "Notificações"
+  - Show checkboxes for each snooze option: "15 minutos", "1 hora", "Personalizar"
+  - Allow user to enable/disable each option
+  - Show description: "Escolha quais opções aparecem nas notificações"
+- **ReminderAlarmReceiver.kt:**
+  - Update `buildSnoozeActions()` to read `AppPreferences.getEnabledSnoozeOptions()`
+  - Only add actions for enabled options
+  - Ensure at least one option is always enabled (prevent all disabled)
+
+**Done criteria:**
+
+- [ ] Settings screen shows "Opções de adiamento" section with checkboxes for each snooze option
+- [ ] User can enable/disable "15 minutos", "1 hora", and "Personalizar" options
+- [ ] Enabled options persist across app restarts
+- [ ] Reminder notifications only show enabled snooze options
+- [ ] At least one option must be enabled (validation)
+- [ ] Default: all options enabled
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 15 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 16 – Authentication Foundation (Google Sign-In)
+
+**Goal:** Add Google Sign-In authentication and user session management.
+
+**Deliverables:**
+
+- **Firebase setup:** Add Firebase dependencies and configure project (user provides `google-services.json`).
+- **core:auth:** New module with `AuthRepository` for Google Sign-In, `CurrentUser` data class, `AuthModule` (Hilt).
+- **feature:auth:** Login screen with Google Sign-In button.
+- **app/ui/navigation:** Add auth check; show `LoginScreen` if not signed in, main app if signed in.
+
+**Implementation details:**
+
+- **Root build.gradle.kts:**
+  ```kotlin
+  plugins {
+      // ... existing
+      alias(libs.plugins.google.services) apply false
+  }
+  ```
+- **app/build.gradle.kts:**
+  ```kotlin
+  plugins {
+      // ... existing
+      alias(libs.plugins.google.services)
+  }
+  
+  dependencies {
+      // ... existing
+      // Firebase BOM
+      implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+      implementation("com.google.firebase:firebase-auth-ktx")
+      implementation("com.google.firebase:firebase-firestore-ktx")
+      // Google Sign-In
+      implementation("com.google.android.gms:play-services-auth:20.7.0")
+  }
+  ```
+- **gradle/libs.versions.toml:**
+  ```toml
+  [plugins]
+  google-services = { id = "com.google.gms.google-services", version = "4.4.0" }
+  ```
+- **Create core:auth module:**
+  - `core/auth/build.gradle.kts` (similar to other core modules)
+  - `core/auth/src/main/java/com/melhoreapp/core/auth/CurrentUser.kt`:
+    ```kotlin
+    data class CurrentUser(
+        val userId: String,  // Firebase UID
+        val email: String?
+    )
+    ```
+  - `core/auth/src/main/java/com/melhoreapp/core/auth/AuthRepository.kt`:
+    - `signInWithGoogle(activity: Activity): Flow<Result<CurrentUser>>`
+    - `signOut(): Flow<Result<Unit>>`
+    - `currentUser: StateFlow<CurrentUser?>`
+    - Uses Firebase Auth + Google Sign-In API
+  - `core/auth/src/main/java/com/melhoreapp/core/auth/AuthModule.kt` (Hilt):
+    - Provides `AuthRepository` as singleton
+- **Create feature:auth module:**
+  - `feature/auth/ui/LoginScreen.kt`:
+    - "Sign in with Google" button
+    - Shows loading state during sign-in
+    - Navigates to main app on success
+  - `feature/auth/ui/LoginViewModel.kt`:
+    - Calls `AuthRepository.signInWithGoogle()`
+    - Handles success/error states
+- **MelhoreNavHost.kt:**
+  - Inject `AuthRepository`
+  - Check `authRepository.currentUser.value`
+  - If null: show `LoginScreen`
+  - If signed in: show main app navigation
+
+**Done criteria:**
+
+- [ ] User can sign in with Google
+- [ ] User session persists across app restarts
+- [ ] App shows login screen when not signed in
+- [ ] App shows main app when signed in
+- [ ] Sign out works (add to Settings screen in future sprint)
+- [ ] Firebase project configured (user provides `google-services.json`)
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 16 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 17 – Database Migration & User Scoping
+
+**Goal:** Add `userId` to all entities and scope all queries by current user.
+
+**Deliverables:**
+
+- **core:database:** Database migration 2→3: add `userId: String` column to `ReminderEntity`, `CategoryEntity`, `ChecklistItemEntity`.
+- **All DAOs:** Update queries to filter by `userId` parameter.
+- **All ViewModels:** Inject `AuthRepository`, pass current `userId` to DAOs.
+- **Migration handling:** For existing local data, assign temporary userId or prompt user to sign in.
+
+**Implementation details:**
+
+- **ReminderEntity.kt:**
+  ```kotlin
+  data class ReminderEntity(
+      // ... existing fields
+      val userId: String,  // New, non-null
+      // ...
+  )
+  ```
+- **CategoryEntity.kt:** Add `userId: String`
+- **ChecklistItemEntity.kt:** Add `userId: String`
+- **MelhoreDatabase.kt:**
+  - Update version: `@Database(version = 3, ...)`
+  - Add migration 2→3:
+    ```kotlin
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            // Add userId column (nullable initially for migration)
+            database.execSQL("ALTER TABLE reminders ADD COLUMN userId TEXT")
+            database.execSQL("ALTER TABLE categories ADD COLUMN userId TEXT")
+            database.execSQL("ALTER TABLE checklist_items ADD COLUMN userId TEXT")
+            // For existing data: assign temporary userId or leave null (handle in app logic)
+            // Option: Set userId = "local_${deviceId}" for existing rows
+        }
+    }
+    ```
+- **All DAOs (ReminderDao, CategoryDao, ChecklistItemDao):**
+  - Update all query methods to accept `userId: String` parameter
+  - Add `WHERE userId = :userId` to all queries
+  - Example: `getAllReminders(userId: String): Flow<List<ReminderEntity>>`
+- **All ViewModels:**
+  - Inject `AuthRepository`
+  - Get current user: `authRepository.currentUser.value?.userId`
+  - Pass `userId` to all DAO calls
+  - Handle case when user is null (show login screen)
+- **MigrationHelper.kt (new in core:common or core:database):**
+  - On app start, if migration 2→3 ran and userId is null for some rows:
+    - If user signed in: assign current userId to all null rows
+    - If user not signed in: assign temporary userId `"local_${deviceId}"` (will be migrated on sign-in)
+
+**Done criteria:**
+
+- [ ] Database migration 2→3 runs successfully
+- [ ] All entities have `userId` field
+- [ ] All DAO queries filter by `userId`
+- [ ] All ViewModels pass `userId` to DAOs
+- [ ] Existing data handled gracefully (assigned userId)
+- [ ] Queries return only current user's data
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 17 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 18 – Cloud Sync Implementation (Firebase Firestore)
+
+**Goal:** Sync reminder, category, and checklist data to/from Firebase Firestore.
+
+**Deliverables:**
+
+- **core:sync:** New module with `SyncRepository` and `FirestoreSyncService`.
+- **Firestore structure:** Collections `/users/{userId}/reminders`, `/users/{userId}/categories`, `/users/{userId}/checklistItems`.
+- **Sync logic:** Upload local changes to Firestore; download cloud changes and merge (cloud wins conflicts); auto-sync on data changes; offline support.
+
+**Implementation details:**
+
+- **Create core:sync module:**
+  - `core/sync/build.gradle.kts`:
+    ```kotlin
+    dependencies {
+        implementation(project(":core:common"))
+        implementation(project(":core:database"))
+        implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+        implementation("com.google.firebase:firebase-firestore-ktx")
+    }
+    ```
+- **FirestoreSyncService.kt:**
+  - `uploadReminders(userId: String, reminders: List<ReminderEntity>): Flow<Result<Unit>>`
+  - `downloadReminders(userId: String): Flow<Result<List<ReminderEntity>>>`
+  - `uploadCategories(userId: String, categories: List<CategoryEntity>): Flow<Result<Unit>>`
+  - `downloadCategories(userId: String): Flow<Result<List<CategoryEntity>>>`
+  - `uploadChecklistItems(userId: String, items: List<ChecklistItemEntity>): Flow<Result<Unit>>`
+  - `downloadChecklistItems(userId: String): Flow<Result<List<ChecklistItemEntity>>>`
+  - Use Firestore offline persistence: `FirebaseFirestore.getInstance().enableNetwork()` and `setFirestoreSettings()` with `setPersistenceEnabled(true)`
+- **SyncRepository.kt:**
+  - `syncAll(userId: String): Flow<Result<Unit>>` - Full sync (download then upload)
+  - `enableAutoSync(userId: String)` - Listen to Firestore changes, update local DB
+  - `disableAutoSync()` - Stop listening
+  - Conflict resolution: Cloud data wins (use `updatedAt` timestamp or last-write-wins)
+- **SyncModule.kt (Hilt):**
+  - Provides `SyncRepository` and `FirestoreSyncService`
+- **Integration points:**
+  - On app start (if user signed in): Call `syncRepository.syncAll(userId)`
+  - On data changes (create/update/delete): Upload to Firestore
+  - Enable Firestore listeners for real-time sync (optional, can be added later)
+
+**Done criteria:**
+
+- [ ] Data syncs to Firestore on create/update/delete
+- [ ] Data downloads from Firestore on app start
+- [ ] Changes sync across devices (test with 2 devices)
+- [ ] Works offline (queues changes, syncs when online)
+- [ ] Conflict resolution works (cloud wins)
+- [ ] Sync errors handled gracefully
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 14 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 19 – Data Migration & Sync Polish
+
+**Goal:** Handle first-time sign-in data migration and polish sync experience.
+
+**Deliverables:**
+
+- **MigrationHelper:** Dialog on first sign-in asking user to choose migration strategy (upload local, merge with cloud, or start fresh).
+- **Sync status:** UI indicator showing sync status (syncing, synced, error).
+- **Error handling:** Retry mechanism for failed syncs; error messages in UI.
+- **Settings:** Add "Sign out" option in Settings screen.
+
+**Implementation details:**
+
+- **MigrationHelper.kt (core:sync or core:common):**
+  - `checkAndHandleMigration(userId: String, context: Context): Flow<Result<Unit>>`
+  - Detect if local data exists (check for reminders/categories without userId or with temporary userId)
+  - Show dialog with 3 options:
+    1. "Fazer upload para esta conta" - Upload all local data to cloud
+    2. "Mesclar com dados da nuvem" - Download cloud, merge (cloud wins conflicts)
+    3. "Começar do zero" - Clear local data, use cloud only
+  - Execute chosen action
+  - Mark migration as complete in `AppPreferences`
+- **Sync status indicator:**
+  - Add to `ReminderListScreen` or Settings screen
+  - Show "Sincronizando...", "Sincronizado", or error icon
+  - Use `SyncRepository.syncStatus: StateFlow<SyncStatus>`
+- **Error handling:**
+  - Retry button on sync errors
+  - Snackbar messages for sync failures
+  - Log sync errors for debugging
+- **Settings screen:**
+  - Add "Sair" (Sign out) button
+  - Calls `AuthRepository.signOut()`
+  - Navigates to login screen
+  - Optionally clears local data or keeps it (user choice)
+
+**Done criteria:**
+
+- [ ] User sees migration dialog on first sign-in
+- [ ] User can choose migration strategy
+- [ ] Migration completes successfully for all 3 options
+- [ ] Sync status visible in UI
+- [ ] Sync errors show retry option
+- [ ] Sign out works from Settings
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 15 section).
+
+**Status:** Not started.
+
+**Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Sprint 20 – Documentation and release prep
 
 **Goal:** Docs and release readiness.
 
@@ -239,7 +863,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Done criteria:**
 
 - [ ] New developer (or AI) can onboard using docs and run tests.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 10 section).
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 20 section).
 
 **Status:** Not started.
 

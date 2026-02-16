@@ -10,6 +10,7 @@ import com.melhoreapp.core.database.entity.ChecklistItemEntity
 import com.melhoreapp.core.database.entity.Priority
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
+import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import com.melhoreapp.core.database.entity.CategoryEntity
@@ -63,6 +64,9 @@ class AddReminderViewModel @Inject constructor(
 
     private val _checklistItems = MutableStateFlow<List<ChecklistItemUi>>(emptyList())
     val checklistItems: StateFlow<List<ChecklistItemUi>> = _checklistItems.asStateFlow()
+
+    private val _showCancellationConfirmation = MutableStateFlow(false)
+    val showCancellationConfirmation: StateFlow<Boolean> = _showCancellationConfirmation.asStateFlow()
 
     val categories: StateFlow<List<CategoryEntity>> = categoryDao.getAllCategories()
         .stateIn(
@@ -198,6 +202,37 @@ class AddReminderViewModel @Inject constructor(
                 }
                 reminderScheduler.scheduleReminder(id, _dueAt.value, t, entity.notes, isSnoozeFire = false)
             }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun showCancellationConfirmation() {
+        _showCancellationConfirmation.value = true
+    }
+
+    fun dismissCancellationConfirmation() {
+        _showCancellationConfirmation.value = false
+    }
+
+    suspend fun cancelReminder(): Result<Unit> {
+        val id = reminderId ?: return Result.failure(IllegalStateException("Not in edit mode"))
+        return try {
+            val reminder = reminderDao.getReminderById(id) ?: return Result.failure(NoSuchElementException("Reminder not found"))
+            val now = System.currentTimeMillis()
+            
+            // Update status to CANCELLED
+            val updated = reminder.copy(
+                status = ReminderStatus.CANCELLED,
+                updatedAt = now
+            )
+            reminderDao.update(updated)
+            
+            // Cancel any scheduled alarms
+            reminderScheduler.cancelReminder(id)
+            
+            _showCancellationConfirmation.value = false
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

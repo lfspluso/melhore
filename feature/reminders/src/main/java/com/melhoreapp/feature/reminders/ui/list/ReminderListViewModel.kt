@@ -9,6 +9,7 @@ import com.melhoreapp.core.database.dao.ChecklistItemDao
 import com.melhoreapp.core.database.dao.ReminderDao
 import com.melhoreapp.core.database.entity.CategoryEntity
 import com.melhoreapp.core.database.entity.ReminderEntity
+import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -56,6 +57,12 @@ class ReminderListViewModel @Inject constructor(
     private val _groupByTag = MutableStateFlow(appPreferences.getGroupByTag())
     val groupByTag: StateFlow<Boolean> = _groupByTag.asStateFlow()
 
+    private val _showAdvancedFilters = MutableStateFlow(appPreferences.getShowAdvancedFilters())
+    val showAdvancedFilters: StateFlow<Boolean> = _showAdvancedFilters.asStateFlow()
+
+    private val _completionConfirmationReminderId = MutableStateFlow<Long?>(null)
+    val completionConfirmationReminderId: StateFlow<Long?> = _completionConfirmationReminderId.asStateFlow()
+
     val categories: StateFlow<List<CategoryEntity>> = categoryDao.getAllCategories()
         .stateIn(
             scope = viewModelScope,
@@ -79,6 +86,13 @@ class ReminderListViewModel @Inject constructor(
         }
         f.dateToMillis?.let { to ->
             result = result.filter { it.dueAt <= to }
+        }
+        // Filter by status
+        if (!f.showCompleted) {
+            result = result.filter { it.status != ReminderStatus.COMPLETED }
+        }
+        if (!f.showCancelled) {
+            result = result.filter { it.status != ReminderStatus.CANCELLED }
         }
         result
     }.combine(_sortOrder) { list, order ->
@@ -140,17 +154,24 @@ class ReminderListViewModel @Inject constructor(
         val priorityOrdinals = appPreferences.getLastFilterPriorities()
         val dateFrom = appPreferences.getLastFilterDateFrom()
         val dateTo = appPreferences.getLastFilterDateTo()
+        val showCompleted = appPreferences.getShowCompletedReminders()
         return ReminderListFilter(
             categoryIds = categoryIds,
             priorityOrdinals = priorityOrdinals,
             dateFromMillis = dateFrom,
-            dateToMillis = dateTo
+            dateToMillis = dateTo,
+            showCompleted = showCompleted,
+            showCancelled = true // Always show cancelled by default
         )
     }
 
     private fun loadInitialSortOrder(): SortOrder {
-        val name = appPreferences.getLastSortOrder() ?: return SortOrder.DUE_DATE_ASC
-        return SortOrder.entries.find { it.name == name } ?: SortOrder.DUE_DATE_ASC
+        val name = appPreferences.getLastSortOrder()
+        return if (name != null) {
+            SortOrder.entries.find { it.name == name } ?: SortOrder.DUE_DATE_ASC
+        } else {
+            SortOrder.DUE_DATE_ASC
+        }
     }
 
     private fun persistFilter() {
@@ -159,6 +180,7 @@ class ReminderListViewModel @Inject constructor(
         appPreferences.setLastFilterPriorities(f.priorityOrdinals)
         appPreferences.setLastFilterDateFrom(f.dateFromMillis)
         appPreferences.setLastFilterDateTo(f.dateToMillis)
+        appPreferences.setShowCompletedReminders(f.showCompleted)
     }
 
     private fun persistSortOrder() {
@@ -185,6 +207,16 @@ class ReminderListViewModel @Inject constructor(
         persistFilter()
     }
 
+    fun setShowCompleted(show: Boolean) {
+        _filter.value = _filter.value.copy(showCompleted = show)
+        persistFilter()
+    }
+
+    fun setShowCancelled(show: Boolean) {
+        _filter.value = _filter.value.copy(showCancelled = show)
+        persistFilter()
+    }
+
     fun clearFilter() {
         _filter.value = ReminderListFilter()
         persistFilter()
@@ -200,10 +232,49 @@ class ReminderListViewModel @Inject constructor(
         appPreferences.setGroupByTag(groupByTag)
     }
 
+    fun setShowAdvancedFilters(show: Boolean) {
+        _showAdvancedFilters.value = show
+        appPreferences.setShowAdvancedFilters(show)
+    }
+
     fun deleteReminder(id: Long) {
         viewModelScope.launch {
             reminderScheduler.cancelReminder(id)
             reminderDao.deleteById(id)
+        }
+    }
+
+    fun showCompletionConfirmation(reminderId: Long) {
+        _completionConfirmationReminderId.value = reminderId
+    }
+
+    fun dismissCompletionConfirmation() {
+        _completionConfirmationReminderId.value = null
+    }
+
+    fun markAsCompleted(reminderId: Long) {
+        viewModelScope.launch {
+            val reminder = reminderDao.getReminderById(reminderId) ?: return@launch
+            val now = System.currentTimeMillis()
+            
+            // Update status to COMPLETED
+            val updated = reminder.copy(
+                status = ReminderStatus.COMPLETED,
+                updatedAt = now
+            )
+            reminderDao.update(updated)
+            
+            // Cancel any scheduled alarms
+            reminderScheduler.cancelReminder(reminderId)
+            
+            // Check if delete after completion is enabled and delete if so
+            if (appPreferences.getDeleteAfterCompletion()) {
+                reminderScheduler.cancelReminder(reminderId)
+                reminderDao.deleteById(reminderId)
+            }
+            
+            // Dismiss confirmation dialog
+            _completionConfirmationReminderId.value = null
         }
     }
 }

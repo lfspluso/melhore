@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
@@ -78,6 +79,7 @@ fun AddReminderScreen(
     val recurrenceType by viewModel.recurrenceType.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val checklistItems by viewModel.checklistItems.collectAsState()
+    val showCancellationConfirmation by viewModel.showCancellationConfirmation.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -225,7 +227,50 @@ fun AddReminderScreen(
             ) {
                 Text("Salvar melhore")
             }
+
+            // Show cancellation button only in edit mode
+            if (viewModel.isEditMode) {
+                OutlinedButton(
+                    onClick = { viewModel.showCancellationConfirmation() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancelar melhore")
+                }
+            }
         }
+    }
+
+    // Cancellation confirmation dialog
+    if (showCancellationConfirmation) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissCancellationConfirmation() },
+            title = { Text("Você tem certeza?") },
+            text = { Text("Você tem certeza que deseja cancelar este melhore?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            viewModel.cancelReminder()
+                                .onSuccess { onSaved() }
+                                .onFailure { e ->
+                                    snackbarHostState.showSnackbar(
+                                        message = e.message ?: "Não foi possível cancelar o melhore"
+                                    )
+                                }
+                        }
+                    }
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { viewModel.dismissCancellationConfirmation() }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
     }
 }
 
@@ -417,6 +462,8 @@ private fun RecurrenceDropdown(
         RecurrenceType.NONE -> "Nenhuma"
         RecurrenceType.DAILY -> "Diário"
         RecurrenceType.WEEKLY -> "Semanal"
+        RecurrenceType.BIWEEKLY -> "Quinzenal"
+        RecurrenceType.MONTHLY -> "Mensal"
     }
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -441,6 +488,8 @@ private fun RecurrenceDropdown(
                     RecurrenceType.NONE -> "Nenhuma"
                     RecurrenceType.DAILY -> "Diário"
                     RecurrenceType.WEEKLY -> "Semanal"
+                    RecurrenceType.BIWEEKLY -> "Quinzenal"
+                    RecurrenceType.MONTHLY -> "Mensal"
                 }
                 DropdownMenuItem(
                     text = { Text(label) },

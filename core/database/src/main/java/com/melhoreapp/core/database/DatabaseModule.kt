@@ -31,6 +31,15 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+private val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add status column, default to ACTIVE for existing records
+        db.execSQL("ALTER TABLE reminders ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'")
+        // Update status based on isActive: if isActive = 0, set status to CANCELLED, else ACTIVE
+        db.execSQL("UPDATE reminders SET status = CASE WHEN isActive = 0 THEN 'CANCELLED' ELSE 'ACTIVE' END")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -43,7 +52,7 @@ object DatabaseModule {
         context,
         MelhoreDatabase::class.java,
         "melhore_db"
-    ).addMigrations(MIGRATION_1_2).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
     @Provides
     @Singleton

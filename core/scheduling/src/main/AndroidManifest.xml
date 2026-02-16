@@ -11,5 +11,13 @@
                 <action android:name="com.melhoreapp.core.scheduling.SNOOZE_REMINDER" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".CompletionCheckReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.melhoreapp.core.scheduling.COMPLETE_REMINDER" />
+                <action android:name="com.melhoreapp.core.scheduling.SNOOZE_REMINDER_FROM_COMPLETION" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

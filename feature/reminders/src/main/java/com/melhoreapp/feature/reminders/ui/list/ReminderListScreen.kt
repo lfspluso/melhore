@@ -17,7 +17,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DashboardCustomize
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -48,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +60,8 @@ import com.melhoreapp.core.database.entity.CategoryEntity
 import com.melhoreapp.core.database.entity.Priority
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
+import com.melhoreapp.core.database.entity.ReminderStatus
+import com.melhoreapp.core.scheduling.nextOccurrenceMillis
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -75,6 +82,8 @@ fun ReminderListScreen(
     val sortOrder by viewModel.sortOrder.collectAsState()
     val groupByTag by viewModel.groupByTag.collectAsState()
     val groupedSections by viewModel.groupedSections.collectAsState()
+    val showAdvancedFilters by viewModel.showAdvancedFilters.collectAsState()
+    val completionConfirmationReminderId by viewModel.completionConfirmationReminderId.collectAsState()
     val hasActiveFilter = !filter.isAll()
 
     Scaffold(
@@ -117,22 +126,56 @@ fun ReminderListScreen(
                 Column(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
+                    // Advanced filters toggle button
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { viewModel.setShowAdvancedFilters(!showAdvancedFilters) },
+                            modifier = Modifier.semantics {
+                                contentDescription = if (showAdvancedFilters) {
+                                    "Ocultar filtros avançados"
+                                } else {
+                                    "Mostrar filtros avançados"
+                                }
+                            }
+                        ) {
+                            Text("Filtros avançados")
+                            Icon(
+                                imageVector = if (showAdvancedFilters) {
+                                    Icons.Default.ExpandLess
+                                } else {
+                                    Icons.Default.ExpandMore
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+                    }
+                    // Sort row always visible
                     ReminderSortRow(
                         sortOrder = sortOrder,
                         onSortOrderChange = viewModel::setSortOrder
                     )
-                    ReminderFilterRow(
-                        filter = filter,
-                        categories = categories,
-                        onFilterByCategoryIds = viewModel::setFilterByCategoryIds,
-                        onFilterPriorities = viewModel::setFilterPriorities,
-                        onFilterDateRange = viewModel::setFilterDateRange,
-                        onClearFilter = viewModel::clearFilter
-                    )
-                    ReminderGroupByRow(
-                        groupByTag = groupByTag,
-                        onGroupByTagChange = viewModel::setGroupByTag
-                    )
+                    // Filter and group-by rows only when expanded
+                    if (showAdvancedFilters) {
+                        ReminderFilterRow(
+                            filter = filter,
+                            categories = categories,
+                            onFilterByCategoryIds = viewModel::setFilterByCategoryIds,
+                            onFilterPriorities = viewModel::setFilterPriorities,
+                            onFilterDateRange = viewModel::setFilterDateRange,
+                            onShowCompletedChange = viewModel::setShowCompleted,
+                            onClearFilter = viewModel::clearFilter
+                        )
+                        ReminderGroupByRow(
+                            groupByTag = groupByTag,
+                            onGroupByTagChange = viewModel::setGroupByTag
+                        )
+                    }
                 }
             }
             if (remindersWithChecklist.isEmpty()) {
@@ -199,7 +242,8 @@ fun ReminderListScreen(
                                 ReminderItem(
                                     reminderWithChecklist = item,
                                     onClick = { onReminderClick(item.reminder.id) },
-                                    onDelete = { viewModel.deleteReminder(item.reminder.id) }
+                                    onDelete = { viewModel.deleteReminder(item.reminder.id) },
+                                    onComplete = { viewModel.showCompletionConfirmation(item.reminder.id) }
                                 )
                             }
                         }
@@ -211,13 +255,37 @@ fun ReminderListScreen(
                             ReminderItem(
                                 reminderWithChecklist = item,
                                 onClick = { onReminderClick(item.reminder.id) },
-                                onDelete = { viewModel.deleteReminder(item.reminder.id) }
+                                onDelete = { viewModel.deleteReminder(item.reminder.id) },
+                                onComplete = { viewModel.showCompletionConfirmation(item.reminder.id) }
                             )
                         }
                     }
                 }
             }
         }
+    }
+
+    // Completion confirmation dialog
+    completionConfirmationReminderId?.let { reminderId ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissCompletionConfirmation() },
+            title = { Text("Você tem certeza?") },
+            text = { Text("Deseja marcar este melhore como concluído?") },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.markAsCompleted(reminderId) }
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.OutlinedButton(
+                    onClick = { viewModel.dismissCompletionConfirmation() }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
@@ -301,6 +369,7 @@ private fun ReminderFilterRow(
     onFilterByCategoryIds: (Set<Long>) -> Unit,
     onFilterPriorities: (Set<Int>) -> Unit,
     onFilterDateRange: (Long?, Long?) -> Unit,
+    onShowCompletedChange: (Boolean) -> Unit,
     onClearFilter: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -454,6 +523,28 @@ private fun ReminderFilterRow(
                 }
             )
         }
+        // Show completed filter
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterChip(
+                selected = filter.showCompleted,
+                onClick = { onShowCompletedChange(!filter.showCompleted) },
+                label = { Text("Mostrar concluídos") },
+                modifier = Modifier.semantics {
+                    contentDescription = if (filter.showCompleted) {
+                        "Ocultar melhores concluídos"
+                    } else {
+                        "Mostrar melhores concluídos"
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -534,6 +625,57 @@ private fun isThisMonth(from: Long?, to: Long?): Boolean {
         end.year == now.year && end.month == now.month
 }
 
+/**
+ * Calculates the next notification date for a reminder.
+ * Returns a Pair of (timestamp, displayText) where timestamp may be null for completed/cancelled reminders.
+ */
+@Composable
+private fun getNextNotificationDate(reminder: ReminderEntity): Pair<Long?, String> {
+    val now = System.currentTimeMillis()
+    val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.getDefault())
+    
+    // If completed or cancelled, return empty string (status shown via tag, not text)
+    if (reminder.status == ReminderStatus.COMPLETED) {
+        return Pair(null, "")
+    }
+    if (reminder.status == ReminderStatus.CANCELLED) {
+        return Pair(null, "")
+    }
+    
+    val snoozedUntil = reminder.snoozedUntil
+    
+    // If snoozed, show snooze time
+    if (snoozedUntil != null && snoozedUntil > now) {
+        val formatted = dateTimeFormatter.format(
+            Instant.ofEpochMilli(snoozedUntil).atZone(ZoneId.systemDefault())
+        )
+        return Pair(snoozedUntil, formatted)
+    }
+    
+    // If recurring, calculate next occurrence
+    if (reminder.type != RecurrenceType.NONE) {
+        val nextOccurrence = nextOccurrenceMillis(reminder.dueAt, reminder.type)
+        return if (nextOccurrence != null) {
+            val formatted = dateTimeFormatter.format(
+                Instant.ofEpochMilli(nextOccurrence).atZone(ZoneId.systemDefault())
+            )
+            Pair(nextOccurrence, formatted)
+        } else {
+            Pair(null, "")
+        }
+    }
+    
+    // Non-recurring: show empty string if past (status shown via tag), else show dueAt
+    return if (reminder.dueAt <= now) {
+        Pair(null, "")
+    } else {
+        val formatted = dateTimeFormatter.format(
+            Instant.ofEpochMilli(reminder.dueAt).atZone(ZoneId.systemDefault())
+        )
+        Pair(reminder.dueAt, formatted)
+    }
+}
+
 @Composable
 private fun PriorityBadge(
     priority: Priority,
@@ -569,26 +711,43 @@ private fun PriorityBadge(
 private fun ReminderItem(
     reminderWithChecklist: ReminderWithChecklist,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onComplete: () -> Unit
 ) {
     val reminder = reminderWithChecklist.reminder
-    val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.getDefault())
-    val dueText = dateTimeFormatter.format(
-        Instant.ofEpochMilli(reminder.dueAt).atZone(ZoneId.systemDefault())
-    )
+    val isCompleted = reminder.status == ReminderStatus.COMPLETED
+    val isCancelled = reminder.status == ReminderStatus.CANCELLED
+    val isActive = reminder.status == ReminderStatus.ACTIVE
+    val (_, dateText) = getNextNotificationDate(reminder)
+    
+    // Check if reminder is pending confirmation (ACTIVE but past due date and not snoozed)
+    val now = System.currentTimeMillis()
+    val snoozedUntil = reminder.snoozedUntil
+    val isPendingConfirmation = isActive && 
+        reminder.dueAt <= now && 
+        (snoozedUntil == null || snoozedUntil <= now) &&
+        reminder.type == RecurrenceType.NONE
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            containerColor = if (isCompleted || isCancelled) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+            contentColor = if (isCompleted || isCancelled) {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(if (isCompleted || isCancelled) 8.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
@@ -602,16 +761,62 @@ private fun ReminderItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = dueText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-                if (reminder.type != RecurrenceType.NONE) {
+                if (dateText.isNotEmpty()) {
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+                if (isPendingConfirmation) {
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = Color(0xFFFFB74D).copy(alpha = 0.25f) // Orange/yellow background (works with dark theme)
+                    ) {
+                        Text(
+                            text = "PENDENTE CONFIRMAÇÃO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFFFB74D), // Orange/yellow text
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                if (isCompleted) {
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Text(
+                            text = "MELHORADO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                if (isCancelled) {
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.errorContainer
+                    ) {
+                        Text(
+                            text = "CANCELADO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+                if (reminder.type != RecurrenceType.NONE && !isCompleted && !isCancelled) {
                     val recurrenceLabel = when (reminder.type) {
                         RecurrenceType.NONE -> ""
                         RecurrenceType.DAILY -> "Diário"
                         RecurrenceType.WEEKLY -> "Semanal"
+                        RecurrenceType.BIWEEKLY -> "Quinzenal"
+                        RecurrenceType.MONTHLY -> "Mensal"
                     }
                     Text(
                         text = recurrenceLabel,
@@ -620,7 +825,7 @@ private fun ReminderItem(
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-                if (reminderWithChecklist.totalCount > 0) {
+                if (reminderWithChecklist.totalCount > 0 && !isCompleted && !isCancelled) {
                     Text(
                         text = "${reminderWithChecklist.checkedCount}/${reminderWithChecklist.totalCount}",
                         style = MaterialTheme.typography.labelSmall,
@@ -628,16 +833,30 @@ private fun ReminderItem(
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-                PriorityBadge(
-                    priority = reminder.priority,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                if (!isCompleted && !isCancelled) {
+                    PriorityBadge(
+                        priority = reminder.priority,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Excluir melhore"
-                )
+            // Show complete button only for ACTIVE reminders
+            if (isActive) {
+                IconButton(onClick = onComplete) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Marcar como concluído"
+                    )
+                }
+            }
+            // Show delete button only for COMPLETED reminders
+            if (isCompleted) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Excluir melhore"
+                    )
+                }
             }
         }
     }
@@ -681,7 +900,8 @@ private fun ReminderListScreenWithItemsPreview() {
         ReminderItem(
             reminderWithChecklist = item,
             onClick = {},
-            onDelete = {}
+            onDelete = {},
+            onComplete = {}
         )
     }
 }
