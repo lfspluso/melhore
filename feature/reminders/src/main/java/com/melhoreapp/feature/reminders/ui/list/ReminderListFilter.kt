@@ -10,7 +10,7 @@ data class ReminderListFilter(
     val dateFromMillis: Long? = null,
     val dateToMillis: Long? = null,
     val showCompleted: Boolean = true,
-    val showCancelled: Boolean = true
+    val showCancelled: Boolean = false
 ) {
     /** True when no filter is applied (show all reminders). */
     fun isAll(): Boolean =

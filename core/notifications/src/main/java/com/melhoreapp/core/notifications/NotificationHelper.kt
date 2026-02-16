@@ -42,18 +42,22 @@ object NotificationHelper {
      *
      * @param snoozeActions List of (label, PendingIntent) for each snooze option (e.g. "5 min", "1 hour").
      *                     The receiver for each PendingIntent should read the chosen duration from the intent.
+     * @param isRoutine Whether this is a Rotina reminder (affects content intent navigation)
      */
     fun showReminderNotification(
         context: Context,
         reminderId: Long,
         title: String,
         text: String,
-        snoozeActions: List<Pair<String, PendingIntent>> = emptyList()
+        snoozeActions: List<Pair<String, PendingIntent>> = emptyList(),
+        isRoutine: Boolean = false
     ) {
-        val contentIntent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName)
-            ?.let { intent ->
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val contentIntent = if (isRoutine) {
+            // For Rotina reminders, navigate to task setup screen
+            Intent(context, Class.forName("com.melhoreapp.MainActivity")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("navigation_route", "reminders/routine/$reminderId/setup")
+            }.let { intent ->
                 PendingIntent.getActivity(
                     context,
                     reminderId.toInt(),
@@ -61,6 +65,20 @@ object NotificationHelper {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
             }
+        } else {
+            // Regular reminder - open main app
+            context.packageManager
+                .getLaunchIntentForPackage(context.packageName)
+                ?.let { intent ->
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    PendingIntent.getActivity(
+                        context,
+                        reminderId.toInt(),
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                }
+        }
         val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)

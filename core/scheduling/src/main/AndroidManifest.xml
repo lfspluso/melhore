@@ -19,5 +19,20 @@
                 <action android:name="com.melhoreapp.core.scheduling.SNOOZE_REMINDER_FROM_COMPLETION" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".RoutineSkipReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.melhoreapp.core.scheduling.SKIP_ROUTINE_DAY" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".TaskCheckupReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.melhoreapp.core.scheduling.DONE_TASK" />
+                <action android:name="com.melhoreapp.core.scheduling.CONTINUE_TASK" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

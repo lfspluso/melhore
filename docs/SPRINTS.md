@@ -391,31 +391,59 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 12 – Routine Type for Melhores
+## Sprint 12 – Routine Type for Melhores and Custom Recurrence
 
-**Goal:** Add a new Melhore type called "Routine" (Rotine) that directs users to set up tasks for the day when triggered.
+**Goal:** Transform Rotina (Routine) from a recurrence type into a **type of Melhore**, and add **custom recurrence** support for selecting specific days of the week. Routines can have any recurrence pattern (daily, weekly, biweekly, monthly, or custom), and custom recurrence is also available for regular Melhores.
 
 **Deliverables:**
 
+- **core:database/entity/ReminderEntity.kt:**
+  - Add `isRoutine: Boolean` field (default `false`) to distinguish Routine reminders from regular Melhores
+  - Add `customRecurrenceDays: String?` field to store custom days of week as comma-separated string (e.g., "MONDAY,WEDNESDAY,FRIDAY")
+  - Database version: 3 → 4
+
 - **core:database/entity/RecurrenceType.kt:**
-  - Add `ROUTINE` to `RecurrenceType` enum
+  - Add `CUSTOM` enum value for custom recurrence patterns
 
-- **feature:reminders/ui/addedit/AddReminderScreen.kt:**
-  - Update recurrence dropdown to show "Rotina" option (maps to `RecurrenceType.ROUTINE`)
-  - Update recurrence label display to show "Rotina" for Routine type
+- **core:database/DatabaseModule.kt:**
+  - Add migration 3→4: add `isRoutine INTEGER NOT NULL DEFAULT 0` and `customRecurrenceDays TEXT` columns
 
-- **core:scheduling/ReminderAlarmReceiver.kt:**
-  - Handle Routine type - when fired, set intent flag or use notification action to navigate to task setup
-  - Routine reminders behave similarly to one-time reminders but with special action on notification tap
-
-- **app/ui/navigation/MelhoreNavHost.kt:**
-  - Add deep link or navigation action for Routine reminder tap
-  - When Routine reminder notification is tapped, navigate user to app (or specific screen) to set up tasks for the day
+- **core:common/RecurrenceDaysConverter.kt:**
+  - Create utility for serializing/deserializing Set<DayOfWeek> to/from comma-separated string
 
 - **core:scheduling/RecurrenceHelper.kt:**
-  - Update `nextOccurrenceMillis()` to handle `ROUTINE` type (similar to `NONE` - no automatic recurrence, but can be manually rescheduled)
+  - Update `nextOccurrenceMillis()` to handle `CUSTOM` type with customRecurrenceDaysString parameter
+  - Add `nextCustomOccurrenceMillis()` helper function to find next occurrence matching specified days of week
+
+- **feature:reminders/ui/addedit/AddReminderScreen.kt:**
+  - Add "Tipo" (Type) section with toggle/chips: "Melhore" (default) and "Rotina"
+  - Update recurrence dropdown to include "Personalizado" option (maps to `RecurrenceType.CUSTOM`)
+  - When "Personalizado" is selected, show day-of-week selector (checkboxes for Monday through Sunday)
+  - Create `RoutineTypeSelector` composable for choosing between Melhore and Rotina
+  - Create `CustomRecurrenceDaysSelector` composable for selecting days of week
+
+- **feature:reminders/ui/addedit/AddReminderViewModel.kt:**
+  - Add `isRoutine: StateFlow<Boolean>` state
+  - Add `customRecurrenceDays: StateFlow<Set<DayOfWeek>>` state
+  - Update `saveReminder()` to persist `isRoutine` and serialize `customRecurrenceDays` to comma-separated string
+  - Update `init` block to load `isRoutine` and parse `customRecurrenceDays` when editing existing reminder
+
+- **feature:reminders/ui/list/ReminderListScreen.kt:**
+  - Update reminder item display to show "Rotina" badge/tag when `isRoutine == true`
+  - Update recurrence label display to show custom days when `type == CUSTOM` (e.g., "Seg, Qua, Sex")
+  - Update `getNextNotificationDate()` to pass `customRecurrenceDays` to `nextOccurrenceMillis()`
 
 **Implementation details:**
+
+- **ReminderEntity.kt:**
+  ```kotlin
+  data class ReminderEntity(
+      // ... existing fields
+      val isRoutine: Boolean = false,
+      val customRecurrenceDays: String? = null,
+      // ...
+  )
+  ```
 
 - **RecurrenceType.kt:**
   ```kotlin
@@ -425,26 +453,221 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
       WEEKLY,
       BIWEEKLY,
       MONTHLY,
-      ROUTINE  // New
+      CUSTOM  // New
   }
   ```
-- **AddReminderScreen.kt:**
-  - Update recurrence dropdown options:
-    - "Rotina" → `RecurrenceType.ROUTINE` (new)
-- **ReminderAlarmReceiver.kt:**
-  - When Routine reminder fires, notification tap should navigate to task setup screen
-  - Use notification intent extras or deep link to identify Routine type and trigger navigation
+
 - **RecurrenceHelper.kt:**
-  - `ROUTINE` case: return `null` (no automatic next occurrence, but reminder can be manually rescheduled)
+  - `nextOccurrenceMillis()` signature updated to accept optional `customRecurrenceDaysString: String?`
+  - For CUSTOM type: finds next occurrence that matches one of the specified days of week
+  - Custom recurrence logic: if current day matches and time hasn't passed, use current day; otherwise advance to next matching day in the week
+
+- **AddReminderScreen.kt:**
+  - Routine type selector uses FilterChip components for "Melhore" vs "Rotina"
+  - Custom recurrence days selector shows FilterChip for each day of week (Seg, Ter, Qua, Qui, Sex, Sáb, Dom)
+  - At least one day must be selected when CUSTOM recurrence is chosen
 
 **Done criteria:**
 
-- [ ] Routine option appears in recurrence dropdown
-- [ ] Routine reminders can be created and saved
-- [ ] When Routine reminder fires, notification appears
-- [ ] Tapping Routine notification navigates user to task setup screen
-- [ ] Routine reminders show "Rotina" label in reminder list
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12 section).
+- [x] Routine type selector appears in add/edit reminder screen
+- [x] Routine reminders can be created and saved with any recurrence pattern
+- [x] Custom recurrence option appears in recurrence dropdown
+- [x] Custom recurrence days selector appears when "Personalizado" is selected
+- [x] Custom recurrence reminders fire on correct days
+- [x] Routine badge appears in reminder list for Routine reminders
+- [x] Custom recurrence days display correctly in reminder list (e.g., "Seg, Qua, Sex")
+- [x] Database migration 3→4 runs successfully
+- [x] Editing existing reminders preserves isRoutine and customRecurrenceDays
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 12 section).
+
+**Status:** Done.
+
+**Lessons learned:** Storing custom recurrence days as a comma-separated string in the database provides a simple, cloud-sync-friendly format while keeping the data model flexible. Using FilterChip components for both Routine type selection and custom days selection provides a consistent, intuitive UI. The custom recurrence logic handles edge cases like finding the next matching day within the current week or advancing to the next week if needed. Separating Routine as a type (isRoutine flag) rather than a recurrence type allows Routines to have any recurrence pattern, making them more flexible and useful.
+
+---
+
+## Sprint 12.1 – Database Rework: Parent-Child Relationship and ID Generation
+
+**Goal:** Rework database to have proper ID generation and clear parent-child relationship between Rotina reminders and their daily task reminders.
+
+**Deliverables:**
+
+- **core:database/entity/ReminderEntity.kt:**
+  - Add `parentReminderId: Long?` field (nullable, foreign key to parent Rotina reminder)
+  - Add `startTime: Long?` field (nullable, for task start time - epoch milliseconds)
+  - Add `checkupFrequencyHours: Int?` field (nullable, for checkup frequency in hours)
+  - Add `isTask: Boolean` field (default `false`) to distinguish task reminders from regular reminders
+  - Database version: 4 → 5
+
+- **core:database/DatabaseModule.kt:**
+  - Add migration 4→5: add columns and indexes for parent-child relationship
+
+- **core:database/dao/ReminderDao.kt:**
+  - Add query methods: `getTasksByParentReminderId()` and `getTasksByParentReminderIdOnce()`
+  - Add query method: `getAllRemindersExcludingTasks()` to filter out task reminders
+
+- **core:database/MelhoreDatabase.kt:**
+  - Update version to 5
+
+**Done criteria:**
+
+- [x] Database migration 4→5 runs successfully
+- [x] `parentReminderId`, `startTime`, `checkupFrequencyHours`, and `isTask` fields added to ReminderEntity
+- [x] Foreign key relationship established (via entity annotation)
+- [x] Indexes created for efficient queries
+- [x] DAO methods added to query tasks by parent reminder ID
+- [x] Existing queries continue to work (backward compatible)
+
+**Status:** Done.
+
+**Lessons learned:** SQLite doesn't support adding foreign keys via ALTER TABLE, but Room enforces them for new tables via entity annotations. Foreign key cascade delete (`onDelete = ForeignKey.CASCADE`) ensures child task reminders are automatically deleted when parent Rotina is deleted. **Database optimization (post-implementation):** Migration 5→6 added indexes for query performance: single-column indexes on `status` and `startTime` for filtering and sorting; composite indexes on `(status, dueAt)` for `getUpcomingActiveReminders()` queries, `(isTask, status)` for task filtering, and `(parentReminderId, startTime, dueAt)` for efficient parent-child queries with ordering. Indexes are designed to match actual query patterns and prevent full table scans as data grows.
+
+---
+
+## Sprint 12.2 – Rotina Notification Behavior Development
+
+**Goal:** Implement Rotina notification behavior: when Rotina notification fires, clicking it navigates to a screen to add daily tasks (Tarefas) as child reminders. Tasks have start times and checkup frequencies, reusing snooze logic for checkups.
+
+**Deliverables:**
+
+- **core:scheduling/ReminderAlarmReceiver.kt:**
+  - Detect when notification is for a Rotina reminder (`isRoutine == true`)
+  - Update notification content intent to navigate to task setup screen instead of main app
+  - Add "Skip day" action button to Rotina notifications
+
+- **core:scheduling/RoutineSkipReceiver.kt (new):**
+  - Handle "Skip day" action from Rotina notification
+  - When confirmed: advance Rotina reminder to next occurrence (skip current day)
+  - Update `dueAt` in database and reschedule next occurrence
+
+- **feature:reminders/ui/routine/RotinaTaskSetupScreen.kt (new):**
+  - New screen shown when Rotina notification is clicked
+  - Display Rotina reminder title and date
+  - Allow user to add multiple tasks (Tarefas) for the day
+  - For each task: task title/name input, start time picker, checkup frequency picker
+  - "Save tasks" button creates child reminder entities
+  - "Skip day" button (with confirmation)
+
+- **feature:reminders/ui/routine/RotinaTaskSetupViewModel.kt (new):**
+  - Load parent Rotina reminder
+  - Manage list of tasks to create (title, startTime, checkupFrequencyHours)
+  - `saveTasks()`: Create child reminder entities for each task
+  - `skipDay()`: Advance Rotina to next occurrence
+
+- **core:scheduling/ReminderScheduler.kt:**
+  - Extend `scheduleReminder()` to handle task reminders with checkup frequency
+  - Schedule initial notification at `startTime`
+  - After initial notification, schedule checkup notifications every `checkupFrequencyHours`
+
+- **core:scheduling/TaskCheckupReceiver.kt (new):**
+  - Handle checkup notifications for task reminders
+  - Show notification with "Done", "Snooze", "Continue" actions
+  - Schedule next checkup based on user action
+
+- **app/ui/navigation/MelhoreNavHost.kt:**
+  - Add route: `"reminders/routine/{reminderId}/setup"`
+
+- **core:notifications/NotificationHelper.kt:**
+  - Update `showReminderNotification()` to accept optional `isRoutine: Boolean` parameter
+  - When `isRoutine == true`, add "Skip day" action button
+  - Update content intent to navigate to task setup screen for Rotina reminders
+
+**Done criteria:**
+
+- [x] Rotina notification click navigates to task setup screen
+- [x] Task setup screen allows adding multiple tasks with start times and checkup frequencies
+- [x] Child reminder entities created with proper parent relationship
+- [x] Task reminders scheduled at start time
+- [x] Checkup notifications fire every X hours after start time
+- [x] Checkup notifications have "Done", "Snooze", "Continue" actions
+- [x] "Skip day" action works with confirmation
+- [x] Skip day advances Rotina to next occurrence
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 12.2 section).
+
+**Status:** Done.
+
+**Lessons learned:** Rotina notifications navigate to task setup screen via deep link intent extras. Task reminders are created as child entities with parent-child relationship. Checkup notifications reuse existing snooze logic and scheduling infrastructure. The task setup screen allows users to add multiple tasks with start times and checkup frequencies. Skip day functionality advances Rotina to next occurrence using RecurrenceHelper. Task checkup notifications provide "Done", "Snooze", and "Continue" actions for flexible task management.
+
+---
+
+## Sprint 12.2.1 – Rotina Current Period Tasks and Navigation
+
+**Goal:** Restrict Rotina task creation to only the current period (day/week/month based on recurrence type) and navigate back to Melhore home page after tasks are saved.
+
+**Deliverables:**
+
+- **feature:reminders/ui/routine/RotinaTaskSetupViewModel.kt:**
+  - Add period calculation logic based on parent reminder's recurrence type:
+    - Daily: current day (start of day to end of day)
+    - Weekly: current week (start of week to end of week)
+    - Biweekly: current biweekly period
+    - Monthly: current month (start of month to end of month)
+    - Custom: current period based on custom recurrence days
+  - Add helper functions `getCurrentPeriodStart()` and `getCurrentPeriodEnd()` to calculate period boundaries using `java.time` APIs
+  - Update `addTask()` to set default start time within current period boundaries
+  - Update `updateTask()` to validate that task start time is within current period
+  - Add validation in `saveTasks()` to ensure all tasks fall within the current period before saving
+
+- **feature:reminders/ui/routine/RotinaTaskSetupScreen.kt:**
+  - Add visual indicator showing the current period (e.g., "Tasks for: [date range]")
+  - Update time picker to restrict selection to current period only
+  - Show validation message/error if user tries to set task outside current period
+  - Display period boundaries clearly in the UI
+
+- **app/ui/navigation/MelhoreNavHost.kt:**
+  - Update `onSaved` callback for RotinaTaskSetupScreen to navigate to reminders home (`Tab.Reminders.route`) instead of just `popBackStack()`
+  - Use `popUpTo` with appropriate flags to clear back stack and return to home page
+
+**Done criteria:**
+
+- [ ] Period calculation works correctly for all recurrence types (daily, weekly, biweekly, monthly, custom)
+- [ ] Tasks can only be created/scheduled within the current period boundaries
+- [ ] Time picker restricts selection to current period
+- [ ] Visual indicator shows current period in the UI
+- [ ] Validation prevents saving tasks outside current period
+- [ ] After saving tasks, navigation returns to Melhore home page (reminders list)
+- [ ] Back stack is properly cleared when navigating home
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12.2.1 section).
+
+**Status:** In progress.
+
+**Lessons learned:** *(To be added after implementation)*
+
+---
+
+## Sprint 12.3 – UI Tabs: Separate Tarefas and Rotinas
+
+**Goal:** Add tabs at the bottom of the Melhores screen to separate Tarefas (task reminders) and Rotinas (routine reminders), reducing visual clutter.
+
+**Deliverables:**
+
+- **feature:reminders/ui/list/ReminderListScreen.kt:**
+  - Add tab row below top app bar
+  - Two tabs: "Tarefas" (Tasks) and "Rotinas" (Routines)
+  - Default tab: "Tarefas" (shows regular reminders, excludes child task reminders)
+  - "Rotinas" tab: shows only Rotina reminders (`isRoutine == true` and `isTask == false`)
+
+- **feature:reminders/ui/list/ReminderListViewModel.kt:**
+  - Add `selectedTab: StateFlow<ReminderTab>` state
+  - Update `remindersWithChecklist` flow to filter based on selected tab
+  - Persist selected tab in `AppPreferences`
+
+- **feature:reminders/ui/list/ReminderTab.kt (new enum):**
+  - Enum with TAREfas and ROTINAS values
+
+- **core:common/preferences/AppPreferences.kt:**
+  - Add methods to persist/restore selected reminder tab
+
+**Done criteria:**
+
+- [ ] Tab row appears below top app bar in ReminderListScreen
+- [ ] Two tabs: "Tarefas" and "Rotinas"
+- [ ] "Tarefas" tab shows regular reminders (excludes child task reminders)
+- [ ] "Rotinas" tab shows only Rotina reminders
+- [ ] Tab selection persists across app restarts
+- [ ] Empty states shown when no reminders in selected tab
+- [ ] Visual distinction between active and inactive tabs
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12.3 section).
 
 **Status:** Not started.
 
@@ -542,7 +765,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Deliverables:**
 
-- **feature:settings:** Add UI section to enable/disable and customize snooze options (15 minutos, 1 hora, Personalizar).
+- **feature:settings:** Add UI section to enable/disable and customize snooze options (5 minutos, 15 minutos, 30 minutos, 1 hora, 2 horas, 1 dia, Personalizar). Maximum 3 options can be selected at once.
 - **core:common (AppPreferences):** Add preferences to store enabled snooze options.
 - **core:scheduling:** Update `ReminderAlarmReceiver` to read enabled snooze options from preferences and only show enabled options in notifications.
 
@@ -550,37 +773,86 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 - **AppPreferences.kt:**
   - Add `KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"`
-  - Add `getEnabledSnoozeOptions(): Set<String>` (returns set of enabled option keys: "15_min", "1_hour", "personalizar")
+  - Add `getEnabledSnoozeOptions(): Set<String>` (returns set of enabled option keys: "5_min", "15_min", "30_min", "1_hour", "2_hours", "1_day", "personalizar")
   - Add `setEnabledSnoozeOptions(options: Set<String>)`
-  - Default: all options enabled
+  - Default: 3 options enabled ("5_min", "15_min", "1_hour")
 - **SettingsViewModel.kt:**
   - Add `enabledSnoozeOptions: StateFlow<Set<String>>`
   - Add `setSnoozeOptionEnabled(option: String, enabled: Boolean)`
   - Load from `AppPreferences` on init
   - Persist on change
+  - Validation: maximum 3 options can be enabled at once; at least 1 option must remain enabled
 - **SettingsScreen.kt:**
   - Add new section "Opções de adiamento" under "Notificações"
-  - Show checkboxes for each snooze option: "15 minutos", "1 hora", "Personalizar"
-  - Allow user to enable/disable each option
-  - Show description: "Escolha quais opções aparecem nas notificações"
+  - Show checkboxes for each snooze option: "5 minutos", "15 minutos", "30 minutos", "1 hora", "2 horas", "1 dia", "Personalizar"
+  - Allow user to enable/disable each option (up to 3 at once)
+  - Disable checkboxes when 3 options are already selected (except for already selected ones)
+  - Show description: "Escolha até 3 opções que aparecem nas notificações"
 - **ReminderAlarmReceiver.kt:**
   - Update `buildSnoozeActions()` to read `AppPreferences.getEnabledSnoozeOptions()`
   - Only add actions for enabled options
+  - Support all 7 snooze options with correct durations
   - Ensure at least one option is always enabled (prevent all disabled)
 
 **Done criteria:**
 
-- [ ] Settings screen shows "Opções de adiamento" section with checkboxes for each snooze option
-- [ ] User can enable/disable "15 minutos", "1 hora", and "Personalizar" options
-- [ ] Enabled options persist across app restarts
-- [ ] Reminder notifications only show enabled snooze options
-- [ ] At least one option must be enabled (validation)
-- [ ] Default: all options enabled
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 15 section).
+- [x] Settings screen shows "Opções de adiamento" section with checkboxes for each snooze option
+- [x] User can enable/disable all 7 options: "5 minutos", "15 minutos", "30 minutos", "1 hora", "2 horas", "1 dia", "Personalizar"
+- [x] Maximum 3 options can be selected at once (validation)
+- [x] Enabled options persist across app restarts
+- [x] Reminder notifications only show enabled snooze options
+- [x] At least one option must be enabled (validation)
+- [x] Default: 3 options enabled ("5 minutos", "15 minutos", "1 hora")
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 15 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Storing enabled snooze options as a Set<String> in SharedPreferences (serialized as comma-separated string) provides a simple and flexible way to persist user preferences. The validation in SettingsViewModel ensures at least one option remains enabled and maximum 3 options can be selected, preventing edge cases where no snooze actions would be available or too many actions would clutter notifications (Android limits notifications to 3 visible actions). The fallback logic in ReminderAlarmReceiver.buildSnoozeActions() defaults to 3 options if preferences are empty, ensuring notifications always have at least one action. This pattern of reading preferences at notification time (rather than caching) ensures settings changes take effect immediately for new notifications. The UI disables checkboxes when 3 options are already selected (except for already selected ones) to provide clear feedback to users about the selection limit.
+
+---
+
+## Sprint 15.5 – Warning Section for Pending Confirmation Tasks
+
+**Goal:** Add a warning section above all other tasks in the reminder list, displaying reminders tagged as "PENDENTE CONFIRMAÇÃO" with a subtitle message encouraging users to complete, schedule, or cancel pending reminders.
+
+**Deliverables:**
+
+- **feature:reminders:** Add warning section composable (`PendingConfirmationWarningSection`) that displays pending confirmation reminders above all other tasks; warning section shows title "PENDENTE CONFIRMAÇÃO", subtitle "É importante não deixar Melhores sem estarem completos, agendados ou cancelados", and list of pending reminders.
+- **ReminderListViewModel:** Add `pendingConfirmationReminders: StateFlow<List<ReminderWithChecklist>>` that filters reminders matching pending confirmation criteria (ACTIVE status, past due date, not snoozed or snooze expired, non-recurring).
+
+**Implementation details:**
+
+- **ReminderListViewModel.kt:**
+  - Add `pendingConfirmationReminders: StateFlow<List<ReminderWithChecklist>>` derived from `remindersWithChecklist`
+  - Filter reminders where:
+    - `status == ReminderStatus.ACTIVE`
+    - `dueAt <= now` (past due date)
+    - `snoozedUntil == null || snoozedUntil <= now` (not snoozed or snooze expired)
+    - `type == RecurrenceType.NONE` (non-recurring)
+- **ReminderListScreen.kt:**
+  - Create `PendingConfirmationWarningSection` composable:
+    - Takes list of `ReminderWithChecklist` items
+    - Displays warning card/surface with orange/yellow theme (matching existing "PENDENTE CONFIRMAÇÃO" tag colors)
+    - Shows title "PENDENTE CONFIRMAÇÃO"
+    - Shows subtitle "É importante não deixar Melhores sem estarem completos, agendados ou cancelados"
+    - Lists pending reminders using `ReminderItem` composable (reusable)
+  - In `LazyColumn`, add warning section as first item (`item(key = "warning_section")`) when `pendingConfirmationReminders.isNotEmpty()`
+  - Warning section appears above all other tasks regardless of grouping mode (grouped or flat list)
+
+**Done criteria:**
+
+- [x] Warning section appears above all other tasks when there are pending confirmation reminders
+- [x] Warning section displays the subtitle message
+- [x] Warning section shows all pending confirmation reminders
+- [x] Warning section is visually distinct (warning colors)
+- [x] Pending reminders in warning section are clickable and functional
+- [x] Warning section works correctly with both grouped and flat list views
+- [x] Warning section disappears when all pending reminders are completed/cancelled
+- [x] Docs CONTEXT, ARCHITECTURE, SPRINTS, TESTING updated.
+
+**Status:** Done.
+
+**Lessons learned:** The warning section provides clear visual feedback to users about reminders that need attention. By filtering reminders based on pending confirmation criteria (ACTIVE, past due, not snoozed, non-recurring) and displaying them prominently at the top of the list, users are encouraged to take action. The warning section uses the same `ReminderItem` composable as the regular list, ensuring consistency and reusability. The section automatically appears/disappears based on the filtered list, providing a dynamic user experience that adapts to the current state of reminders.
 
 ---
 
@@ -868,6 +1140,14 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Status:** Not started.
 
 **Lessons learned:** (to be filled when sprint is done.)
+
+---
+
+## Bug fixes (post-sprint)
+
+- **Home screen date alignment (two root causes):**
+  1. **Date picker (add/edit):** Material3 DatePicker returns UTC midnight for the selected day; converting to system zone in negative-offset timezones yielded the wrong calendar day. Fixed by using `ZoneOffset.UTC` to derive the selected calendar day and for the picker initial value in `AddReminderScreen.AddReminderDatePickerDialog` and `RotinaTaskSetupScreen.TaskDatePickerDialog`.
+  2. **Next notification date (recurring):** `RecurrenceHelper.nextOccurrenceMillis()` was advancing by one period (e.g. one day) before checking if the current occurrence was still in the future, so the list always showed the following occurrence (e.g. tomorrow) even when the next fire was today. Fixed by only advancing when the current occurrence is before or equal to now, so the displayed "next" is the first occurrence at or after now. See [ARCHITECTURE.md](ARCHITECTURE.md) (Date and timezone handling) and [TESTING.md](TESTING.md) (Date alignment).
 
 ---
 

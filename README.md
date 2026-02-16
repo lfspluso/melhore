@@ -34,6 +34,8 @@ Routine-improvement Android app: one-time and recurring reminders, notifications
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** – Architecture, data flow, and main decisions.
 - **[docs/SPRINTS.md](docs/SPRINTS.md)** – Sprint plan and test criteria for each sprint.
 - **[docs/TESTING.md](docs/TESTING.md)** – How to test and validate each step (sprint) with expected behaviour.
+- **[docs/DATABASE.md](docs/DATABASE.md)** – Database schema, entities, indexes, and current architecture.
+- **[docs/DATABASE_ROADMAP.md](docs/DATABASE_ROADMAP.md)** – Post-launch database improvement roadmap and migration plans.
 
 This project uses **Cursor rules** (`.cursor/rules/`) for AI-assisted development; the rules point to [docs/CONTEXT.md](docs/CONTEXT.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for context. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines; [CHANGELOG.md](CHANGELOG.md) for version/sprint history.
 

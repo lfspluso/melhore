@@ -13,6 +13,7 @@ private const val KEY_GROUP_BY_TAG = "group_by_tag"
 private const val KEY_SHOW_ADVANCED_FILTERS = "show_advanced_filters"
 private const val KEY_AUTO_DELETE_COMPLETED_REMINDERS = "auto_delete_completed_reminders"
 private const val KEY_SHOW_COMPLETED_REMINDERS = "show_completed_reminders"
+private const val KEY_SHOW_CANCELLED_REMINDERS = "show_cancelled_reminders"
 private const val KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"
 
 /** Sentinel for "no date filter" (SharedPreferences cannot store null). */
@@ -124,6 +125,14 @@ class AppPreferences(context: Context) {
         prefs.edit().putBoolean(KEY_SHOW_COMPLETED_REMINDERS, show).apply()
     }
 
+    // Show cancelled reminders filter
+
+    fun getShowCancelledReminders(): Boolean = prefs.getBoolean(KEY_SHOW_CANCELLED_REMINDERS, false)
+
+    fun setShowCancelledReminders(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_CANCELLED_REMINDERS, show).apply()
+    }
+
     // Snooze options settings (Sprint 15)
 
     fun getEnabledSnoozeOptions(): Set<String> {
@@ -137,6 +146,6 @@ class AppPreferences(context: Context) {
     }
 
     private fun getDefaultEnabledSnoozeOptions(): Set<String> {
-        return setOf("15_min", "1_hour", "personalizar")
+        return setOf("5_min", "15_min", "1_hour")
     }
 }

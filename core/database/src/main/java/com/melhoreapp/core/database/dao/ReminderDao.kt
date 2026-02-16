@@ -16,9 +16,17 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE id = :id")
     suspend fun getReminderById(id: Long): ReminderEntity?
 
+    /**
+     * Gets active reminders with due time after the specified timestamp.
+     * Optimized with composite index on (status, dueAt).
+     */
     @Query("SELECT * FROM reminders WHERE status = 'ACTIVE' AND dueAt > :afterMillis ORDER BY dueAt ASC")
     suspend fun getUpcomingActiveReminders(afterMillis: Long): List<ReminderEntity>
 
+    /**
+     * Gets all active reminders ordered by due date.
+     * Optimized with index on status column.
+     */
     @Query("SELECT * FROM reminders WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
     suspend fun getActiveReminders(): List<ReminderEntity>
 
@@ -40,4 +48,25 @@ interface ReminderDao {
 
     @Query("DELETE FROM reminders WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    /**
+     * Gets all task reminders for a parent Rotina reminder, ordered by start time and due date.
+     * Optimized with composite index on (parentReminderId, startTime, dueAt).
+     */
+    @Query("SELECT * FROM reminders WHERE parentReminderId = :parentReminderId ORDER BY startTime ASC, dueAt ASC")
+    fun getTasksByParentReminderId(parentReminderId: Long): Flow<List<ReminderEntity>>
+
+    /**
+     * Gets all task reminders for a parent Rotina reminder (one-time query).
+     * Optimized with composite index on (parentReminderId, startTime, dueAt).
+     */
+    @Query("SELECT * FROM reminders WHERE parentReminderId = :parentReminderId ORDER BY startTime ASC, dueAt ASC")
+    suspend fun getTasksByParentReminderIdOnce(parentReminderId: Long): List<ReminderEntity>
+
+    /**
+     * Gets all reminders excluding task reminders (isTask = 0).
+     * Optimized with index on isTask column.
+     */
+    @Query("SELECT * FROM reminders WHERE isTask = 0 ORDER BY dueAt ASC")
+    fun getAllRemindersExcludingTasks(): Flow<List<ReminderEntity>>
 }

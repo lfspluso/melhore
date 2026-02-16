@@ -88,11 +88,29 @@ fun SettingsScreen(
                 modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
             )
             Text(
-                text = "Escolha quais opções aparecem nas notificações",
+                text = "Escolha até 3 opções que aparecem nas notificações",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
+            // "5 minutos" option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = enabledSnoozeOptions.contains("5_min"),
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("5_min", it) },
+                    enabled = enabledSnoozeOptions.contains("5_min") || enabledSnoozeOptions.size < 3
+                )
+                Text(
+                    text = "5 minutos",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
             // "15 minutos" option
             Row(
                 modifier = Modifier
@@ -102,10 +120,29 @@ fun SettingsScreen(
             ) {
                 Checkbox(
                     checked = enabledSnoozeOptions.contains("15_min"),
-                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("15_min", it) }
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("15_min", it) },
+                    enabled = enabledSnoozeOptions.contains("15_min") || enabledSnoozeOptions.size < 3
                 )
                 Text(
                     text = "15 minutos",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+            // "30 minutos" option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = enabledSnoozeOptions.contains("30_min"),
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("30_min", it) },
+                    enabled = enabledSnoozeOptions.contains("30_min") || enabledSnoozeOptions.size < 3
+                )
+                Text(
+                    text = "30 minutos",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 8.dp)
                 )
@@ -119,10 +156,47 @@ fun SettingsScreen(
             ) {
                 Checkbox(
                     checked = enabledSnoozeOptions.contains("1_hour"),
-                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("1_hour", it) }
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("1_hour", it) },
+                    enabled = enabledSnoozeOptions.contains("1_hour") || enabledSnoozeOptions.size < 3
                 )
                 Text(
                     text = "1 hora",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+            // "2 horas" option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = enabledSnoozeOptions.contains("2_hours"),
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("2_hours", it) },
+                    enabled = enabledSnoozeOptions.contains("2_hours") || enabledSnoozeOptions.size < 3
+                )
+                Text(
+                    text = "2 horas",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+            // "1 dia" option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = enabledSnoozeOptions.contains("1_day"),
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("1_day", it) },
+                    enabled = enabledSnoozeOptions.contains("1_day") || enabledSnoozeOptions.size < 3
+                )
+                Text(
+                    text = "1 dia",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 8.dp)
                 )
@@ -136,7 +210,8 @@ fun SettingsScreen(
             ) {
                 Checkbox(
                     checked = enabledSnoozeOptions.contains("personalizar"),
-                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("personalizar", it) }
+                    onCheckedChange = { viewModel.setSnoozeOptionEnabled("personalizar", it) },
+                    enabled = enabledSnoozeOptions.contains("personalizar") || enabledSnoozeOptions.size < 3
                 )
                 Text(
                     text = "Personalizar",

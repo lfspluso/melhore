@@ -31,11 +31,12 @@ class ReminderScheduler(
         notes: String,
         isSnoozeFire: Boolean = false,
         requestCodeOffset: Int = 0,
-        isFazendoFollowup: Boolean = false
+        isFazendoFollowup: Boolean = false,
+        isTaskCheckup: Boolean = false
     ) {
         try {
             val triggerTime = triggerAtMillis.coerceAtLeast(System.currentTimeMillis() + MIN_FUTURE_MS)
-            val intent = alarmIntent(reminderId, title, notes, isSnoozeFire, isFazendoFollowup)
+            val intent = alarmIntent(reminderId, title, notes, isSnoozeFire, isFazendoFollowup, isTaskCheckup)
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 reminderId.toInt() + requestCodeOffset,
@@ -144,7 +145,7 @@ class ReminderScheduler(
             reminder.dueAt
         }
         if (triggerAt <= now && reminder.type != RecurrenceType.NONE) {
-            val next = nextOccurrenceMillis(reminder.dueAt, reminder.type) ?: return null
+            val next = nextOccurrenceMillis(reminder.dueAt, reminder.type, reminder.customRecurrenceDays) ?: return null
             database.reminderDao().update(reminder.copy(dueAt = next, updatedAt = now))
             triggerAt = next
         } else if (triggerAt <= now) {
@@ -153,13 +154,14 @@ class ReminderScheduler(
         return triggerAt
     }
 
-    private fun alarmIntent(reminderId: Long, title: String, notes: String, isSnoozeFire: Boolean, isFazendoFollowup: Boolean = false): Intent {
+    private fun alarmIntent(reminderId: Long, title: String, notes: String, isSnoozeFire: Boolean, isFazendoFollowup: Boolean = false, isTaskCheckup: Boolean = false): Intent {
         return Intent(context, ReminderAlarmReceiver::class.java).apply {
             putExtra(ReminderAlarmReceiver.EXTRA_REMINDER_ID, reminderId)
             putExtra(ReminderAlarmReceiver.EXTRA_TITLE, title)
             putExtra(ReminderAlarmReceiver.EXTRA_NOTES, notes.ifEmpty() { "Reminder" })
             putExtra(ReminderAlarmReceiver.EXTRA_IS_SNOOZE_FIRE, isSnoozeFire)
             putExtra(ReminderAlarmReceiver.EXTRA_IS_FAZENDO_FOLLOWUP, isFazendoFollowup)
+            putExtra(ReminderAlarmReceiver.EXTRA_IS_TASK_CHECKUP, isTaskCheckup)
         }
     }
 

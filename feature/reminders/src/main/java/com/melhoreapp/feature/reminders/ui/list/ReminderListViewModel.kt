@@ -8,6 +8,7 @@ import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
 import com.melhoreapp.core.database.dao.ReminderDao
 import com.melhoreapp.core.database.entity.CategoryEntity
+import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ReminderScheduler
@@ -125,8 +126,38 @@ class ReminderListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val groupedSections: StateFlow<List<ReminderSection>> = combine(
+    val pendingConfirmationReminders: StateFlow<List<ReminderWithChecklist>> = remindersWithChecklist
+        .combine(kotlinx.coroutines.flow.flowOf(Unit)) { reminders, _ ->
+            val now = System.currentTimeMillis()
+            reminders.filter { item ->
+                val reminder = item.reminder
+                val snoozedUntil = reminder.snoozedUntil
+                reminder.status == ReminderStatus.ACTIVE &&
+                    reminder.dueAt <= now &&
+                    (snoozedUntil == null || snoozedUntil <= now) &&
+                    reminder.type == RecurrenceType.NONE
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    // Filtered list excluding pending confirmation reminders (they appear only in warning section)
+    val filteredRemindersWithChecklist: StateFlow<List<ReminderWithChecklist>> = combine(
         remindersWithChecklist,
+        pendingConfirmationReminders
+    ) { allReminders, pendingReminders ->
+        val pendingIds = pendingReminders.map { it.reminder.id }.toSet()
+        allReminders.filter { it.reminder.id !in pendingIds }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    val groupedSections: StateFlow<List<ReminderSection>> = combine(
+        filteredRemindersWithChecklist,
         categories,
         _groupByTag
     ) { list, cats, group ->
@@ -155,13 +186,14 @@ class ReminderListViewModel @Inject constructor(
         val dateFrom = appPreferences.getLastFilterDateFrom()
         val dateTo = appPreferences.getLastFilterDateTo()
         val showCompleted = appPreferences.getShowCompletedReminders()
+        val showCancelled = appPreferences.getShowCancelledReminders()
         return ReminderListFilter(
             categoryIds = categoryIds,
             priorityOrdinals = priorityOrdinals,
             dateFromMillis = dateFrom,
             dateToMillis = dateTo,
             showCompleted = showCompleted,
-            showCancelled = true // Always show cancelled by default
+            showCancelled = showCancelled
         )
     }
 
@@ -181,6 +213,7 @@ class ReminderListViewModel @Inject constructor(
         appPreferences.setLastFilterDateFrom(f.dateFromMillis)
         appPreferences.setLastFilterDateTo(f.dateToMillis)
         appPreferences.setShowCompletedReminders(f.showCompleted)
+        appPreferences.setShowCancelledReminders(f.showCancelled)
     }
 
     private fun persistSortOrder() {

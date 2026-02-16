@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,8 +61,10 @@ import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.database.entity.Priority
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -77,6 +80,8 @@ fun AddReminderScreen(
     val categoryId by viewModel.categoryId.collectAsState()
     val priority by viewModel.priority.collectAsState()
     val recurrenceType by viewModel.recurrenceType.collectAsState()
+    val isRoutine by viewModel.isRoutine.collectAsState()
+    val customRecurrenceDays by viewModel.customRecurrenceDays.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val checklistItems by viewModel.checklistItems.collectAsState()
     val showCancellationConfirmation by viewModel.showCancellationConfirmation.collectAsState()
@@ -172,10 +177,22 @@ fun AddReminderScreen(
                 }
             }
 
+            RoutineTypeSelector(
+                isRoutine = isRoutine,
+                onSelect = viewModel::setIsRoutine
+            )
+
             RecurrenceDropdown(
                 selected = recurrenceType,
                 onSelect = viewModel::setRecurrenceType
             )
+
+            if (recurrenceType == RecurrenceType.CUSTOM) {
+                CustomRecurrenceDaysSelector(
+                    selectedDays = customRecurrenceDays,
+                    onDaysChange = viewModel::setCustomRecurrenceDays
+                )
+            }
 
             CategoryDropdown(
                 categories = categories,
@@ -453,6 +470,31 @@ private fun PriorityDropdown(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun RoutineTypeSelector(
+    isRoutine: Boolean,
+    onSelect: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = !isRoutine,
+            onClick = { onSelect(false) },
+            label = { Text("Tarefa") },
+            modifier = Modifier.weight(1f)
+        )
+        FilterChip(
+            selected = isRoutine,
+            onClick = { onSelect(true) },
+            label = { Text("Rotina") },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun RecurrenceDropdown(
     selected: RecurrenceType,
     onSelect: (RecurrenceType) -> Unit
@@ -464,6 +506,7 @@ private fun RecurrenceDropdown(
         RecurrenceType.WEEKLY -> "Semanal"
         RecurrenceType.BIWEEKLY -> "Quinzenal"
         RecurrenceType.MONTHLY -> "Mensal"
+        RecurrenceType.CUSTOM -> "Personalizado"
     }
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -490,6 +533,7 @@ private fun RecurrenceDropdown(
                     RecurrenceType.WEEKLY -> "Semanal"
                     RecurrenceType.BIWEEKLY -> "Quinzenal"
                     RecurrenceType.MONTHLY -> "Mensal"
+                    RecurrenceType.CUSTOM -> "Personalizado"
                 }
                 DropdownMenuItem(
                     text = { Text(label) },
@@ -504,13 +548,73 @@ private fun RecurrenceDropdown(
 }
 
 @Composable
+private fun CustomRecurrenceDaysSelector(
+    selectedDays: Set<DayOfWeek>,
+    onDaysChange: (Set<DayOfWeek>) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Dias da semana",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            DayOfWeek.values().forEach { day ->
+                FilterChip(
+                    selected = selectedDays.contains(day),
+                    onClick = {
+                        val newDays = if (selectedDays.contains(day)) {
+                            selectedDays - day
+                        } else {
+                            selectedDays + day
+                        }
+                        onDaysChange(newDays)
+                    },
+                    label = { Text(dayLabel(day)) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        if (selectedDays.isEmpty()) {
+            Text(
+                text = "Selecione pelo menos um dia",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+private fun dayLabel(day: DayOfWeek): String = when (day) {
+    DayOfWeek.MONDAY -> "Seg"
+    DayOfWeek.TUESDAY -> "Ter"
+    DayOfWeek.WEDNESDAY -> "Qua"
+    DayOfWeek.THURSDAY -> "Qui"
+    DayOfWeek.FRIDAY -> "Sex"
+    DayOfWeek.SATURDAY -> "Sáb"
+    DayOfWeek.SUNDAY -> "Dom"
+}
+
+@Composable
 private fun AddReminderDatePickerDialog(
     initialMillis: Long,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val zone = ZoneId.systemDefault()
+    val initialLocalDate = Instant.ofEpochMilli(initialMillis).atZone(zone).toLocalDate()
+    val initialDateMillisForPicker = initialLocalDate
+        .atStartOfDay(ZoneOffset.UTC)
+        .toInstant()
+        .toEpochMilli()
     val datePickerState = androidx.compose.material3.rememberDatePickerState(
-        initialSelectedDateMillis = initialMillis
+        initialSelectedDateMillis = initialDateMillisForPicker
     )
     androidx.compose.material3.DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -518,10 +622,10 @@ private fun AddReminderDatePickerDialog(
             Button(
                 onClick = {
                     datePickerState.selectedDateMillis?.let { dateMillis ->
-                        val zone = ZoneId.systemDefault()
                         val initial = Instant.ofEpochMilli(initialMillis).atZone(zone)
-                        val picked = Instant.ofEpochMilli(dateMillis).atZone(zone)
-                        val merged = picked.toLocalDate().atTime(initial.toLocalTime()).atZone(zone)
+                        // Material3 DatePicker returns UTC midnight for the selected day; use UTC to get calendar day
+                        val pickedLocalDate = Instant.ofEpochMilli(dateMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                        val merged = pickedLocalDate.atTime(initial.toLocalTime()).atZone(zone)
                         onConfirm(merged.toInstant().toEpochMilli())
                     }
                 }

@@ -18,7 +18,7 @@ import com.melhoreapp.core.database.entity.ReminderEntity
         ListEntity::class,
         ChecklistItemEntity::class
     ],
-    version = 3,
+    version = 6,
     exportSchema = true
 )
 abstract class MelhoreDatabase : RoomDatabase() {

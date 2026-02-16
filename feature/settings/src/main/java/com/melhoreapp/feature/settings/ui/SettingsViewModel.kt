@@ -54,6 +54,10 @@ class SettingsViewModel @Inject constructor(
     fun setSnoozeOptionEnabled(option: String, enabled: Boolean) {
         val current = _enabledSnoozeOptions.value.toMutableSet()
         if (enabled) {
+            // Maximum 3 options can be enabled
+            if (current.size >= 3) {
+                return // Don't allow enabling more than 3 options
+            }
             current.add(option)
         } else {
             // Ensure at least one option remains enabled

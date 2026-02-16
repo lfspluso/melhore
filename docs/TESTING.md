@@ -66,6 +66,16 @@ This document describes how to test and validate each sprint (or step) of the ap
 | 2 | Tap the **delete** icon on one reminder. | That reminder **disappears** from the list immediately (or after a brief update). |
 | 3 | Leave at least one reminder in the list. | List continues to show the remaining items. |
 
+### Date alignment (list vs add/edit)
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a one-time reminder and set a **specific date** (e.g. a future date) via the date picker. Save. | The reminder is saved and you return to the list. |
+| 2 | On the list (Melhores home screen). | The **date shown on the card** matches the date you selected (same calendar day and time). |
+| 3 | Tap the reminder to **edit** it. | The add/edit screen opens with the **same date** pre-selected; opening the date picker shows that same day. |
+
+**Note:** To catch timezone regressions, repeat in a timezone behind UTC (e.g. Americas, Brazil BRT) where the bug was most visible before the fix.
+
 ### Data persistence (process death)
 
 | Step | Action | Expected behaviour |
@@ -268,18 +278,26 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
-## Sprint 12 – Routine Type for Melhores *(to be implemented)*
+## Sprint 12 – Routine Type for Melhores and Custom Recurrence
 
-**Goal:** Add Routine type that directs users to set up tasks when triggered.
+**Goal:** Transform Rotina (Routine) from a recurrence type into a type of Melhore, and add custom recurrence support for selecting specific days of the week.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
-| 1 | On add reminder screen, open **Repetir** (Repeat) dropdown. | Dropdown shows **"Rotina"** option (in addition to existing options). |
-| 2 | Select **"Rotina"** and save a reminder for 1–2 minutes from now. | Reminder is saved; list shows recurrence label **"Rotina"**. |
-| 3 | Wait until the reminder fires (notification appears). | Notification appears at due time. |
-| 4 | Tap the Routine reminder notification. | App opens and navigates to task setup screen (or appropriate screen for setting up tasks for the day). |
+| 1 | On add reminder screen, observe the **Tipo** (Type) section. | Two FilterChips appear: **"Melhore"** (default selected) and **"Rotina"**. |
+| 2 | Select **"Rotina"** chip. | "Rotina" chip becomes selected; "Melhore" chip becomes unselected. |
+| 3 | Open **Repetir** (Repeat) dropdown. | Dropdown shows options: "Nenhuma", "Diário", "Semanal", "Quinzenal", "Mensal", **"Personalizado"**. |
+| 4 | Select **"Personalizado"**. | Day-of-week selector appears below with FilterChips for each day (Seg, Ter, Qua, Qui, Sex, Sáb, Dom). |
+| 5 | Select multiple days (e.g., Seg, Qua, Sex). | Selected days become highlighted; error message disappears if it was showing. |
+| 6 | Save the reminder. | Reminder is saved; list shows **"Rotina"** badge and recurrence label shows selected days (e.g., "Seg, Qua, Sex"). |
+| 7 | Create a regular Melhore (not Routine) with **"Personalizado"** recurrence. | Reminder is saved; list shows custom days but no Routine badge. |
+| 8 | Create a Routine reminder with daily recurrence. | Reminder is saved; list shows "Rotina" badge and "Diário" recurrence label. |
+| 9 | Wait until a custom recurrence reminder fires (notification appears). | Notification appears on one of the selected days at due time. |
+| 10 | Wait for the next occurrence of a custom recurrence reminder. | Notification appears on the next matching day (e.g., if set for Mon/Wed/Fri and today is Tuesday, next notification is Wednesday). |
+| 11 | Edit an existing Routine reminder. | Edit screen shows "Rotina" selected in Tipo section; recurrence and custom days (if applicable) are preserved. |
+| 12 | Force stop app and relaunch with Routine and custom recurrence reminders. | All reminders persist correctly; Routine badges and custom recurrence labels display correctly. |
 
-**Validation:** Routine option appears in dropdown; Routine reminders can be created; notification fires correctly; tapping notification navigates to task setup.
+**Validation:** Routine type selector works; Routine reminders can be created with any recurrence pattern; custom recurrence option appears and works correctly; custom recurrence fires on correct days; Routine badge appears in list; custom days display correctly; editing preserves Routine type and custom recurrence; data persists across app restarts.
 
 ---
 
@@ -343,21 +361,50 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ## Sprint 15 – Snooze Options Settings
 
-**Goal:** Add settings UI to customize which snooze options appear in reminder notifications.
+**Goal:** Add settings UI to customize which snooze options appear in reminder notifications. Maximum 3 options can be selected at once.
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
 | 1 | Open **Settings** screen. Scroll to "Notificações" section. | Section shows "Duração padrão do adiamento" and new section **"Opções de adiamento"**. |
-| 2 | In "Opções de adiamento" section, observe the checkboxes. | Checkboxes shown for: **"15 minutos"**, **"1 hora"**, **"Personalizar"**. All are checked (enabled) by default. |
-| 3 | Uncheck **"1 hora"**. | Checkbox becomes unchecked. |
-| 4 | Create a reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"15 minutos"** and **"Personalizar"** actions (no "1 hora" action). |
-| 5 | Go back to Settings and check **"1 hora"** again. Uncheck **"Personalizar"**. | "1 hora" becomes checked; "Personalizar" becomes unchecked. |
-| 6 | Create another reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"15 minutos"** and **"1 hora"** actions (no "Personalizar" action). |
-| 7 | Try to uncheck all options in Settings. | At least one option must remain checked (validation prevents disabling all options). |
-| 8 | Force stop app and relaunch. Go to Settings. | Previously selected snooze options are still set (preferences persist). |
-| 9 | Create a reminder and check notification. | Notification shows only the enabled snooze options from Settings. |
+| 2 | In "Opções de adiamento" section, observe the checkboxes. | Checkboxes shown for: **"5 minutos"**, **"15 minutos"**, **"30 minutos"**, **"1 hora"**, **"2 horas"**, **"1 dia"**, **"Personalizar"**. Default: **"5 minutos"**, **"15 minutos"**, **"1 hora"** are checked (enabled). |
+| 3 | Try to check a fourth option (e.g. **"30 minutos"**). | Checkbox cannot be checked (validation prevents selecting more than 3 options). Other checkboxes (except the 3 already selected) are disabled. |
+| 4 | Uncheck **"1 hora"** and then check **"30 minutos"**. | "1 hora" becomes unchecked; "30 minutos" becomes checked. Now "5 minutos", "15 minutos", and "30 minutos" are selected. |
+| 5 | Create a reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"5 minutos"**, **"15 minutos"**, and **"30 minutos"** actions (no other actions). |
+| 6 | Go back to Settings. Uncheck **"5 minutos"** and check **"1 hora"**. | "5 minutos" becomes unchecked; "1 hora" becomes checked. Now "15 minutos", "30 minutos", and "1 hora" are selected. |
+| 7 | Create another reminder for 1–2 minutes from now. Wait until notification appears. | Notification shows only **"15 minutos"**, **"30 minutos"**, and **"1 hora"** actions. |
+| 8 | Try to uncheck all options in Settings. | At least one option must remain checked (validation prevents disabling all options). |
+| 9 | Force stop app and relaunch. Go to Settings. | Previously selected snooze options are still set (preferences persist). |
+| 10 | Create a reminder and check notification. | Notification shows only the enabled snooze options from Settings (up to 3). |
 
-**Validation:** Settings screen shows "Opções de adiamento" section; user can enable/disable each snooze option; enabled options persist across restarts; reminder notifications only show enabled options; at least one option must be enabled; default: all options enabled.
+**Validation:** Settings screen shows "Opções de adiamento" section with all 7 options; user can enable/disable each snooze option (maximum 3 at once); enabled options persist across restarts; reminder notifications only show enabled options; at least one option must be enabled; default: 3 options enabled ("5 minutos", "15 minutos", "1 hora").
+
+---
+
+## Sprint 15.5 – Warning Section for Pending Confirmation Tasks
+
+**Goal:** Add a warning section above all other tasks displaying reminders tagged as "PENDENTE CONFIRMAÇÃO" with a subtitle message.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a non-recurring reminder with a due date in the past (e.g., 1 hour ago). Ensure it is ACTIVE (not completed or cancelled) and not snoozed. | Reminder is saved and appears in the list. |
+| 2 | On the reminder list screen, observe the top of the list. | A **warning section** appears above all other tasks with: |
+| 2a | | Title: **"PENDENTE CONFIRMAÇÃO"** (in orange/yellow warning color) |
+| 2b | | Subtitle: **"É importante não deixar Melhores sem estarem completos, agendados ou cancelados"** |
+| 2c | | List of pending reminders (the reminder you just created appears in this section) |
+| 3 | Verify the warning section is visually distinct. | Warning section uses orange/yellow theme colors (matching the "PENDENTE CONFIRMAÇÃO" tag) and has elevated surface. |
+| 4 | Tap on a reminder in the warning section. | Reminder opens for editing (same behavior as regular reminders). |
+| 5 | Mark the reminder as complete (tap checkmark, confirm). | Warning section **disappears** (no more pending confirmation reminders). |
+| 6 | Create another non-recurring reminder with past due date. | Warning section **reappears** with the new pending reminder. |
+| 7 | Enable "Agrupar por tag" (group by tag) on the reminder list. | Warning section still appears **above** the grouped sections. |
+| 8 | Disable "Agrupar por tag" (flat list). | Warning section still appears **above** the flat list. |
+| 9 | Create a recurring reminder (e.g., daily) with past due date. | Recurring reminder does **not** appear in the warning section (only non-recurring reminders appear). |
+| 10 | Snooze a pending reminder (tap snooze option on notification). | Reminder **disappears** from warning section (snoozed reminders are not considered pending). |
+| 11 | Wait until snooze expires (or advance time in tests). | Reminder **reappears** in warning section (snooze expired, reminder is pending again). |
+| 12 | Cancel a pending reminder (open for edit, tap "Cancelar melhore", confirm). | Warning section **disappears** if this was the only pending reminder. |
+| 13 | Create multiple pending reminders (3–4 reminders with past due dates). | All pending reminders appear in the warning section, listed vertically. |
+| 14 | Complete all pending reminders. | Warning section **disappears** completely. |
+
+**Validation:** Warning section appears above all other tasks when there are pending confirmation reminders; warning section displays title and subtitle message; warning section shows all pending confirmation reminders; warning section is visually distinct (warning colors); pending reminders in warning section are clickable and functional; warning section works correctly with both grouped and flat list views; warning section disappears when all pending reminders are completed/cancelled; only non-recurring reminders with past due dates appear in warning section; snoozed reminders do not appear until snooze expires.
 
 ---
 
@@ -377,10 +424,13 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 10:** Advanced filters toggle; dark mode by default; sort always visible.
 - **Sprint 11:** Extended recurrence types (biweekly, monthly) work correctly.
 - **Sprint 11.5:** Next notification date display; auto-delete setting works.
-- **Sprint 12:** (Future) Routine type for Melhores.
+- **Sprint 12:** Routine type for Melhores and custom recurrence.
+- **Sprint 12.2:** Rotina notification behavior; task setup screen; task reminders with checkup notifications.
+- **Sprint 12.2.1:** Rotina current period restriction; navigation to home page after save.
 - **Sprint 13:** Snooze/completion logic; marking as complete/cancelled; 30-minute notifications; completed filter.
 - **Sprint 14:** New snooze options ("15 minutos", "1 hora", "Personalizar"); "Fazendo" follow-up with completion check.
 - **Sprint 15:** Snooze options settings; customize which options appear in notifications.
+- **Sprint 15.5:** Warning section for pending confirmation tasks appears above all other tasks.
 - **Sprint 16:** (Future) Authentication foundation.
 - **Sprint 17:** (Future) Database migration & user scoping.
 - **Sprint 18:** (Future) Cloud sync implementation.
@@ -401,6 +451,80 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 | 2 | Run any automated tests (if added). | Tests pass. |
 
 **Validation:** Onboarding and tests are possible using the documentation and project as-is.
+
+---
+
+## Sprint 12.2 – Rotina Notification Behavior Development
+
+**Goal:** Rotina notification click navigates to task setup screen; tasks are created as child reminders with checkup notifications.
+
+### Rotina notification and task setup
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a Rotina reminder (isRoutine = true) with daily recurrence, schedule it for 1-2 minutes in the future. | Rotina reminder is created and scheduled. |
+| 2 | Wait for Rotina notification to fire (or adjust system time). | Rotina notification appears with "Skip day" action button. |
+| 3 | Tap the Rotina notification (content area, not actions). | App opens and navigates to **RotinaTaskSetupScreen** showing Rotina title and date. |
+| 4 | Tap "Adicionar tarefa" button. | New task input row appears with title field, start time, and checkup frequency fields. |
+| 5 | Enter task title, tap start time field, select a time. | Time picker dialog appears; selected time updates the field. |
+| 6 | Tap frequency field, select frequency (e.g., 2h). | Frequency picker dialog appears; selected frequency updates the field. |
+| 7 | Add another task with different start time and frequency. | Second task row appears. |
+| 8 | Tap "Salvar tarefas" button. | Tasks are saved; screen closes and returns to reminder list. |
+| 9 | Check reminder list (may need to filter or refresh). | Task reminders appear as child reminders (can verify via database or UI if displayed). |
+
+### Skip day functionality
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | From RotinaTaskSetupScreen, tap "Pular dia" button. | Confirmation dialog appears: "Pular dia? Esta ação avançará a Rotina para o próximo dia. Deseja continuar?" |
+| 2 | Tap "Sim" in confirmation dialog. | Rotina dueAt advances to next occurrence; screen closes. |
+| 3 | Verify Rotina reminder in database or list. | Rotina dueAt is updated to next occurrence date/time. |
+
+### Task reminder notifications
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a task reminder with startTime = 1-2 minutes in future and checkupFrequencyHours = 1. | Task reminder is created and scheduled. |
+| 2 | Wait for initial notification at startTime. | Initial notification appears for the task. |
+| 3 | Wait for checkup notification (startTime + checkupFrequencyHours). | Checkup notification appears with "Concluído", "Adiar", and "Continuar" actions. |
+| 4 | Tap "Continuar" action. | Notification dismisses; next checkup is scheduled for checkupFrequencyHours later. |
+| 5 | Wait for next checkup notification. | Another checkup notification appears. |
+| 6 | Tap "Concluído" action. | Task reminder status changes to COMPLETED; all alarms cancelled; no more notifications. |
+| 7 | Tap "Adiar" action (alternative test). | Snooze logic applies; task is snoozed for default duration. |
+
+**Validation:** Rotina notifications navigate to task setup screen; tasks are created with correct parent relationship; task reminders schedule initial and checkup notifications correctly; skip day advances Rotina to next occurrence; checkup actions work as expected.
+
+---
+
+## Sprint 12.2.1 – Rotina Current Period Tasks and Navigation
+
+**Goal:** Restrict Rotina task creation to only the current period and navigate back to Melhore home page after tasks are saved.
+
+### Current period restriction
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a daily Rotina reminder and trigger its notification. Navigate to task setup screen. | Screen shows current period indicator (e.g., "Tasks for: [Today's date]"). |
+| 2 | Tap "Adicionar tarefa" and try to set start time to tomorrow (outside current day). | Time picker restricts selection to today only; validation prevents selecting tomorrow. |
+| 3 | Set task start time within today's boundaries. | Task is accepted; no validation error. |
+| 4 | Try to manually edit task start time to a date outside current period. | Validation error appears; task cannot be saved. |
+| 5 | Create a weekly Rotina reminder and trigger its notification. Navigate to task setup screen. | Screen shows current period indicator (e.g., "Tasks for: [Current week date range]"). |
+| 6 | Try to set task start time outside current week. | Time picker restricts selection to current week only. |
+| 7 | Create a monthly Rotina reminder and trigger its notification. Navigate to task setup screen. | Screen shows current period indicator (e.g., "Tasks for: [Current month date range]"). |
+| 8 | Try to set task start time outside current month. | Time picker restricts selection to current month only. |
+| 9 | Create a custom recurrence Rotina (e.g., Mon/Wed/Fri) and trigger its notification. Navigate to task setup screen. | Screen shows current period indicator based on custom recurrence pattern. |
+| 10 | Try to set task start time outside current custom period. | Time picker restricts selection to current custom period only. |
+
+### Navigation after save
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create tasks for a Rotina within current period and tap "Salvar tarefas". | Tasks are saved; screen navigates back to **Melhore home page** (reminders list). |
+| 2 | Verify navigation. | Back stack is cleared; tapping back button does not return to task setup screen. |
+| 3 | Verify tasks were created. | Task reminders appear in the reminders list (may need to filter or check child tasks). |
+| 4 | Tap "Pular dia" and confirm skip. | Rotina advances to next occurrence; screen navigates back to **Melhore home page**. |
+
+**Validation:** Tasks can only be created within current period boundaries; time picker restricts selection appropriately; visual indicator shows current period; validation prevents saving tasks outside period; navigation returns to Melhore home page after save; back stack is properly cleared.
 
 ---
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
 import com.melhoreapp.core.database.dao.ReminderDao
+import com.melhoreapp.core.common.RecurrenceDaysConverter
 import com.melhoreapp.core.database.entity.ChecklistItemEntity
 import com.melhoreapp.core.database.entity.Priority
 import com.melhoreapp.core.database.entity.RecurrenceType
@@ -14,6 +15,7 @@ import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import com.melhoreapp.core.database.entity.CategoryEntity
+import java.time.DayOfWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -62,6 +64,12 @@ class AddReminderViewModel @Inject constructor(
     private val _recurrenceType = MutableStateFlow(RecurrenceType.NONE)
     val recurrenceType: StateFlow<RecurrenceType> = _recurrenceType.asStateFlow()
 
+    private val _isRoutine = MutableStateFlow(false)
+    val isRoutine: StateFlow<Boolean> = _isRoutine.asStateFlow()
+
+    private val _customRecurrenceDays = MutableStateFlow<Set<DayOfWeek>>(emptySet())
+    val customRecurrenceDays: StateFlow<Set<DayOfWeek>> = _customRecurrenceDays.asStateFlow()
+
     private val _checklistItems = MutableStateFlow<List<ChecklistItemUi>>(emptyList())
     val checklistItems: StateFlow<List<ChecklistItemUi>> = _checklistItems.asStateFlow()
 
@@ -84,6 +92,8 @@ class AddReminderViewModel @Inject constructor(
                     _categoryId.value = reminder.categoryId
                     _priority.value = reminder.priority
                     _recurrenceType.value = reminder.type
+                    _isRoutine.value = reminder.isRoutine
+                    _customRecurrenceDays.value = RecurrenceDaysConverter.deserializeDays(reminder.customRecurrenceDays)
                 }
                 checklistItemDao.getItemsByReminderIdOnce(id).let { items ->
                     _checklistItems.value = items.map { e ->
@@ -103,7 +113,15 @@ class AddReminderViewModel @Inject constructor(
     fun setDueAt(epochMillis: Long) { _dueAt.value = epochMillis }
     fun setCategoryId(id: Long?) { _categoryId.value = id }
     fun setPriority(p: Priority) { _priority.value = p }
-    fun setRecurrenceType(type: RecurrenceType) { _recurrenceType.value = type }
+    fun setRecurrenceType(type: RecurrenceType) { 
+        _recurrenceType.value = type
+        // Clear custom days if not CUSTOM type
+        if (type != RecurrenceType.CUSTOM) {
+            _customRecurrenceDays.value = emptySet()
+        }
+    }
+    fun setIsRoutine(isRoutine: Boolean) { _isRoutine.value = isRoutine }
+    fun setCustomRecurrenceDays(days: Set<DayOfWeek>) { _customRecurrenceDays.value = days }
 
     fun addChecklistItem(label: String) {
         val trimmed = label.trim()
@@ -140,6 +158,9 @@ class AddReminderViewModel @Inject constructor(
     suspend fun save(): Result<Unit> {
         val t = _title.value.trim()
         if (t.isBlank()) return Result.failure(IllegalArgumentException("Title is required"))
+        if (_recurrenceType.value == RecurrenceType.CUSTOM && _customRecurrenceDays.value.isEmpty()) {
+            return Result.failure(IllegalArgumentException("Selecione pelo menos um dia para recorrência personalizada"))
+        }
         if (!reminderScheduler.canScheduleExactAlarms()) {
             return Result.failure(ExactAlarmPermissionRequiredException())
         }
@@ -149,6 +170,11 @@ class AddReminderViewModel @Inject constructor(
         return try {
             if (reminderId != null) {
                 val existing = reminderDao.getReminderById(reminderId) ?: return Result.failure(NoSuchElementException("Reminder not found"))
+                val customDaysString = if (_recurrenceType.value == RecurrenceType.CUSTOM) {
+                    RecurrenceDaysConverter.serializeDays(_customRecurrenceDays.value)
+                } else {
+                    null
+                }
                 val updated = existing.copy(
                     title = t,
                     type = _recurrenceType.value,
@@ -156,6 +182,8 @@ class AddReminderViewModel @Inject constructor(
                     categoryId = _categoryId.value,
                     listId = null,
                     priority = _priority.value,
+                    isRoutine = _isRoutine.value,
+                    customRecurrenceDays = customDaysString,
                     updatedAt = now
                 )
                 reminderDao.update(updated)
@@ -174,6 +202,11 @@ class AddReminderViewModel @Inject constructor(
                 }
                 reminderScheduler.scheduleReminder(reminderId, _dueAt.value, t, existing.notes, isSnoozeFire = false)
             } else {
+                val customDaysString = if (_recurrenceType.value == RecurrenceType.CUSTOM) {
+                    RecurrenceDaysConverter.serializeDays(_customRecurrenceDays.value)
+                } else {
+                    null
+                }
                 val entity = ReminderEntity(
                     title = t,
                     notes = "",
@@ -184,6 +217,8 @@ class AddReminderViewModel @Inject constructor(
                     priority = _priority.value,
                     snoozedUntil = null,
                     isActive = true,
+                    isRoutine = _isRoutine.value,
+                    customRecurrenceDays = customDaysString,
                     createdAt = now,
                     updatedAt = now
                 )

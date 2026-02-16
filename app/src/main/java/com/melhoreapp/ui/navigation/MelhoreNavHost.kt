@@ -32,6 +32,8 @@ import com.melhoreapp.feature.reminders.ui.addedit.AddReminderViewModel
 import com.melhoreapp.feature.reminders.ui.list.ReminderListScreen
 import com.melhoreapp.feature.reminders.ui.list.ReminderListViewModel
 import com.melhoreapp.feature.reminders.ui.templates.TemplatesComingSoonScreen
+import com.melhoreapp.feature.reminders.ui.routine.RotinaTaskSetupScreen
+import com.melhoreapp.feature.reminders.ui.routine.RotinaTaskSetupViewModel
 import com.melhoreapp.feature.integrations.ui.IntegrationsScreen
 import com.melhoreapp.feature.settings.ui.SettingsScreen
 
@@ -47,10 +49,19 @@ private sealed class Tab(
 }
 
 @Composable
-fun MelhoreNavHost() {
+fun MelhoreNavHost(initialRoute: String? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Handle deep link navigation
+    androidx.compose.runtime.LaunchedEffect(initialRoute) {
+        if (initialRoute != null) {
+            navController.navigate(initialRoute) {
+                popUpTo(0) { inclusive = false }
+            }
+        }
+    }
 
     val currentTab = when {
         currentRoute?.startsWith("reminders") == true -> Tab.Reminders
@@ -129,6 +140,25 @@ fun MelhoreNavHost() {
                     viewModel = editViewModel,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "reminders/routine/{reminderId}/setup",
+                arguments = listOf(navArgument("reminderId") { type = NavType.LongType })
+            ) {
+                val setupViewModel: RotinaTaskSetupViewModel = hiltViewModel()
+                val navigateToRemindersHome: () -> Unit = {
+                    navController.navigate(Tab.Reminders.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+                RotinaTaskSetupScreen(
+                    viewModel = setupViewModel,
+                    onBack = navigateToRemindersHome,
+                    onSaved = navigateToRemindersHome
                 )
             }
             composable(Tab.Categories.route) {

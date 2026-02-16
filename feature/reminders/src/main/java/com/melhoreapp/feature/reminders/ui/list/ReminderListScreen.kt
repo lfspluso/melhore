@@ -58,10 +58,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.melhoreapp.core.database.entity.CategoryEntity
 import com.melhoreapp.core.database.entity.Priority
+import com.melhoreapp.core.common.RecurrenceDaysConverter
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.nextOccurrenceMillis
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -76,7 +78,8 @@ fun ReminderListScreen(
     onReminderClick: (Long) -> Unit = {},
     onTemplatesClick: () -> Unit = {}
 ) {
-    val remindersWithChecklist by viewModel.remindersWithChecklist.collectAsState()
+    val filteredRemindersWithChecklist by viewModel.filteredRemindersWithChecklist.collectAsState()
+    val pendingConfirmationReminders by viewModel.pendingConfirmationReminders.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val filter by viewModel.filter.collectAsState()
     val sortOrder by viewModel.sortOrder.collectAsState()
@@ -169,6 +172,7 @@ fun ReminderListScreen(
                             onFilterPriorities = viewModel::setFilterPriorities,
                             onFilterDateRange = viewModel::setFilterDateRange,
                             onShowCompletedChange = viewModel::setShowCompleted,
+                            onShowCancelledChange = viewModel::setShowCancelled,
                             onClearFilter = viewModel::clearFilter
                         )
                         ReminderGroupByRow(
@@ -178,7 +182,7 @@ fun ReminderListScreen(
                     }
                 }
             }
-            if (remindersWithChecklist.isEmpty()) {
+            if (filteredRemindersWithChecklist.isEmpty() && pendingConfirmationReminders.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -230,6 +234,17 @@ fun ReminderListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Warning section for pending confirmation reminders (appears above all other tasks)
+                    if (pendingConfirmationReminders.isNotEmpty()) {
+                        item(key = "warning_section") {
+                            PendingConfirmationWarningSection(
+                                pendingReminders = pendingConfirmationReminders,
+                                onReminderClick = onReminderClick,
+                                onDelete = { viewModel.deleteReminder(it) },
+                                onComplete = { viewModel.showCompletionConfirmation(it) }
+                            )
+                        }
+                    }
                     if (groupByTag && groupedSections.isNotEmpty()) {
                         groupedSections.forEachIndexed { sectionIndex, section ->
                             item(key = "header_$sectionIndex") {
@@ -249,7 +264,7 @@ fun ReminderListScreen(
                         }
                     } else {
                         items(
-                            items = remindersWithChecklist,
+                            items = filteredRemindersWithChecklist,
                             key = { it.reminder.id }
                         ) { item ->
                             ReminderItem(
@@ -370,6 +385,7 @@ private fun ReminderFilterRow(
     onFilterPriorities: (Set<Int>) -> Unit,
     onFilterDateRange: (Long?, Long?) -> Unit,
     onShowCompletedChange: (Boolean) -> Unit,
+    onShowCancelledChange: (Boolean) -> Unit,
     onClearFilter: () -> Unit
 ) {
     val scrollState = rememberScrollState()
@@ -523,7 +539,7 @@ private fun ReminderFilterRow(
                 }
             )
         }
-        // Show completed filter
+        // Show completed and cancelled filters
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -541,6 +557,18 @@ private fun ReminderFilterRow(
                         "Ocultar melhores concluídos"
                     } else {
                         "Mostrar melhores concluídos"
+                    }
+                }
+            )
+            FilterChip(
+                selected = filter.showCancelled,
+                onClick = { onShowCancelledChange(!filter.showCancelled) },
+                label = { Text("Mostrar cancelados") },
+                modifier = Modifier.semantics {
+                    contentDescription = if (filter.showCancelled) {
+                        "Ocultar melhores cancelados"
+                    } else {
+                        "Mostrar melhores cancelados"
                     }
                 }
             )
@@ -588,6 +616,62 @@ private fun ReminderGroupByRow(
 }
 
 @Composable
+private fun PendingConfirmationWarningSection(
+    pendingReminders: List<ReminderWithChecklist>,
+    onReminderClick: (Long) -> Unit,
+    onDelete: (Long) -> Unit,
+    onComplete: (Long) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                heading()
+                contentDescription = "Aviso: Melhores pendentes de confirmação"
+            },
+        color = Color(0xFFFFB74D).copy(alpha = 0.15f), // Orange/yellow background
+        tonalElevation = 4.dp,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Title
+            Text(
+                text = "PENDENTE CONFIRMAÇÃO",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFFFFB74D), // Orange/yellow text
+                modifier = Modifier.semantics {
+                    heading()
+                }
+            )
+            // Subtitle
+            Text(
+                text = "É importante não deixar Melhores sem estarem completos, agendados ou cancelados",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            // List of pending reminders
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                pendingReminders.forEach { item ->
+                    ReminderItem(
+                        reminderWithChecklist = item,
+                        onClick = { onReminderClick(item.reminder.id) },
+                        onDelete = { onDelete(item.reminder.id) },
+                        onComplete = { onComplete(item.reminder.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SectionHeader(tagLabel: String) {
     Surface(
         modifier = Modifier
@@ -625,6 +709,16 @@ private fun isThisMonth(from: Long?, to: Long?): Boolean {
         end.year == now.year && end.month == now.month
 }
 
+private fun dayLabel(day: DayOfWeek): String = when (day) {
+    DayOfWeek.MONDAY -> "Seg"
+    DayOfWeek.TUESDAY -> "Ter"
+    DayOfWeek.WEDNESDAY -> "Qua"
+    DayOfWeek.THURSDAY -> "Qui"
+    DayOfWeek.FRIDAY -> "Sex"
+    DayOfWeek.SATURDAY -> "Sáb"
+    DayOfWeek.SUNDAY -> "Dom"
+}
+
 /**
  * Calculates the next notification date for a reminder.
  * Returns a Pair of (timestamp, displayText) where timestamp may be null for completed/cancelled reminders.
@@ -632,8 +726,15 @@ private fun isThisMonth(from: Long?, to: Long?): Boolean {
 @Composable
 private fun getNextNotificationDate(reminder: ReminderEntity): Pair<Long?, String> {
     val now = System.currentTimeMillis()
-    val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · HH:mm", Locale.getDefault())
-    
+    val zone = ZoneId.systemDefault()
+    val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+
+    fun formatInLocalZone(epochMillis: Long): String {
+        val zdt = Instant.ofEpochMilli(epochMillis).atZone(zone)
+        return "${dateFormatter.format(zdt.toLocalDate())} · ${timeFormatter.format(zdt.toLocalTime())}"
+    }
+
     // If completed or cancelled, return empty string (status shown via tag, not text)
     if (reminder.status == ReminderStatus.COMPLETED) {
         return Pair(null, "")
@@ -641,38 +742,29 @@ private fun getNextNotificationDate(reminder: ReminderEntity): Pair<Long?, Strin
     if (reminder.status == ReminderStatus.CANCELLED) {
         return Pair(null, "")
     }
-    
+
     val snoozedUntil = reminder.snoozedUntil
-    
+
     // If snoozed, show snooze time
     if (snoozedUntil != null && snoozedUntil > now) {
-        val formatted = dateTimeFormatter.format(
-            Instant.ofEpochMilli(snoozedUntil).atZone(ZoneId.systemDefault())
-        )
-        return Pair(snoozedUntil, formatted)
+        return Pair(snoozedUntil, formatInLocalZone(snoozedUntil))
     }
-    
+
     // If recurring, calculate next occurrence
     if (reminder.type != RecurrenceType.NONE) {
-        val nextOccurrence = nextOccurrenceMillis(reminder.dueAt, reminder.type)
+        val nextOccurrence = nextOccurrenceMillis(reminder.dueAt, reminder.type, reminder.customRecurrenceDays)
         return if (nextOccurrence != null) {
-            val formatted = dateTimeFormatter.format(
-                Instant.ofEpochMilli(nextOccurrence).atZone(ZoneId.systemDefault())
-            )
-            Pair(nextOccurrence, formatted)
+            Pair(nextOccurrence, formatInLocalZone(nextOccurrence))
         } else {
             Pair(null, "")
         }
     }
-    
+
     // Non-recurring: show empty string if past (status shown via tag), else show dueAt
     return if (reminder.dueAt <= now) {
         Pair(null, "")
     } else {
-        val formatted = dateTimeFormatter.format(
-            Instant.ofEpochMilli(reminder.dueAt).atZone(ZoneId.systemDefault())
-        )
-        Pair(reminder.dueAt, formatted)
+        Pair(reminder.dueAt, formatInLocalZone(reminder.dueAt))
     }
 }
 
@@ -810,6 +902,21 @@ private fun ReminderItem(
                         )
                     }
                 }
+                // Show Routine badge
+                if (reminder.isRoutine && !isCompleted && !isCancelled) {
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.tertiaryContainer
+                    ) {
+                        Text(
+                            text = "Rotina",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
                 if (reminder.type != RecurrenceType.NONE && !isCompleted && !isCancelled) {
                     val recurrenceLabel = when (reminder.type) {
                         RecurrenceType.NONE -> ""
@@ -817,6 +924,14 @@ private fun ReminderItem(
                         RecurrenceType.WEEKLY -> "Semanal"
                         RecurrenceType.BIWEEKLY -> "Quinzenal"
                         RecurrenceType.MONTHLY -> "Mensal"
+                        RecurrenceType.CUSTOM -> {
+                            val days = RecurrenceDaysConverter.deserializeDays(reminder.customRecurrenceDays)
+                            if (days.isNotEmpty()) {
+                                days.sortedBy { it.value }.joinToString(", ") { dayLabel(it) }
+                            } else {
+                                "Personalizado"
+                            }
+                        }
                     }
                     Text(
                         text = recurrenceLabel,

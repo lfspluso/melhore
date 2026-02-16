@@ -5,5 +5,6 @@ enum class RecurrenceType {
     DAILY,
     WEEKLY,
     BIWEEKLY,
-    MONTHLY
+    MONTHLY,
+    CUSTOM
 }
