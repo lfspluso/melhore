@@ -129,7 +129,7 @@ fun AddReminderScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(if (viewModel.isEditMode) "Editar melhore" else "Novo melhore") },
+                title = { Text(if (viewModel.isEditMode) "Editar Melhore" else "Novo Melhore") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
@@ -234,7 +234,7 @@ fun AddReminderScreen(
                                     }
                                 } else {
                                     snackbarHostState.showSnackbar(
-                                        message = e.message ?: "Não foi possível salvar o melhore"
+                                        message = e.message ?: "Não foi possível salvar o Melhore"
                                     )
                                 }
                             }
@@ -242,7 +242,7 @@ fun AddReminderScreen(
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Salvar melhore")
+                Text("Salvar Melhore")
             }
 
             // Show cancellation button only in edit mode
@@ -251,7 +251,7 @@ fun AddReminderScreen(
                     onClick = { viewModel.showCancellationConfirmation() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cancelar melhore")
+                    Text("Cancelar Melhore")
                 }
             }
         }
@@ -262,7 +262,7 @@ fun AddReminderScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissCancellationConfirmation() },
             title = { Text("Você tem certeza?") },
-            text = { Text("Você tem certeza que deseja cancelar este melhore?") },
+            text = { Text("Você tem certeza que deseja cancelar este Melhore?") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -271,7 +271,7 @@ fun AddReminderScreen(
                                 .onSuccess { onSaved() }
                                 .onFailure { e ->
                                     snackbarHostState.showSnackbar(
-                                        message = e.message ?: "Não foi possível cancelar o melhore"
+                                        message = e.message ?: "Não foi possível cancelar o Melhore"
                                     )
                                 }
                         }
@@ -681,7 +681,7 @@ private fun AddReminderTimePickerDialog(
 private fun AddReminderScreenPreview() {
     MaterialTheme {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Pré-visualização do formulário de melhore")
+            Text("Pré-visualização do formulário de Melhore")
         }
     }
 }

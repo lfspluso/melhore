@@ -40,6 +40,37 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
             // Only process if reminder is ACTIVE
             if (reminder.status != ReminderStatus.ACTIVE) return@runBlocking
 
+            // Check if this is a Rotina reminder and if tasks already exist for current period
+            if (reminder.isRoutine && !isSnoozeFire) {
+                val userId = reminder.userId ?: "local"
+                val tasks = app.database.reminderDao().getTasksByParentReminderIdOnce(userId, reminderId)
+                val periodStart = RotinaPeriodHelper.getCurrentPeriodStart(reminder)
+                val periodEnd = RotinaPeriodHelper.getCurrentPeriodEnd(reminder)
+                
+                // Check if any tasks exist within the current period
+                val hasTasksInPeriod = tasks.any { task ->
+                    task.startTime != null && task.startTime!! in periodStart..periodEnd
+                }
+                
+                if (hasTasksInPeriod) {
+                    // Tasks already exist for this period, skip notification and advance to next occurrence
+                    val now = System.currentTimeMillis()
+                    val nextDue = nextOccurrenceMillis(reminder.dueAt, reminder.type, reminder.customRecurrenceDays) ?: return@runBlocking
+                    val nextEntity = reminder.copy(dueAt = nextDue, updatedAt = now)
+                    app.database.reminderDao().update(nextEntity)
+                    
+                    // Schedule the next occurrence
+                    app.reminderScheduler.scheduleReminder(
+                        reminderId = reminderId,
+                        triggerAtMillis = nextDue,
+                        title = nextEntity.title,
+                        notes = nextEntity.notes.ifEmpty() { "Reminder" },
+                        isSnoozeFire = false
+                    )
+                    return@runBlocking
+                }
+            }
+
             // Check if this is a task reminder
             val isTaskCheckup = intent.getBooleanExtra(EXTRA_IS_TASK_CHECKUP, false)
             if (reminder.isTask && isTaskCheckup) {

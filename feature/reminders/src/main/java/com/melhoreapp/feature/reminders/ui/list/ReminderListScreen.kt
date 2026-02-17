@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -23,7 +24,12 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,6 +43,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.PrimaryTabRow
@@ -45,12 +52,15 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -96,10 +106,12 @@ fun ReminderListScreen(
     val hasActiveFilter = !filter.isAll()
     val syncStatus by viewModel.syncStatus.collectAsState(initial = SyncStatus.Idle)
     val isLocalOnly by viewModel.isLocalOnly.collectAsState(initial = true)
+    val showFilterBottomSheet by viewModel.showFilterBottomSheet.collectAsState()
+    val showSortBottomSheet by viewModel.showSortBottomSheet.collectAsState()
 
-    Scaffold(
-        topBar = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
                 TopAppBar(
                     title = { Text("Melhore, Maria Luiza") },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -107,6 +119,34 @@ fun ReminderListScreen(
                         titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
                     actions = {
+                        // Filter icon with badge indicator when filters are active
+                        BadgedBox(
+                            badge = {
+                                if (hasActiveFilter) {
+                                    Badge()
+                                }
+                            }
+                        ) {
+                            IconButton(onClick = { viewModel.setShowFilterBottomSheet(true) }) {
+                                Icon(
+                                    Icons.Default.FilterList,
+                                    contentDescription = "Filtrar",
+                                    tint = if (hasActiveFilter) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    }
+                                )
+                            }
+                        }
+                        // Sort icon
+                        IconButton(onClick = { viewModel.setShowSortBottomSheet(true) }) {
+                            Icon(
+                                Icons.Default.Sort,
+                                contentDescription = "Ordenar",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                         IconButton(onClick = onTemplatesClick) {
                             Icon(
                                 Icons.Default.DashboardCustomize,
@@ -115,23 +155,14 @@ fun ReminderListScreen(
                         }
                     }
                 )
-                if (isLocalOnly) {
-                    LocalOnlyStatusRow()
-                } else {
-                    SyncStatusRow(
-                        syncStatus = syncStatus,
-                        onRetry = viewModel::retrySync
-                    )
-                }
-            }
-        },
+            },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddClick,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Adicionar melhore")
+                Icon(Icons.Default.Add, contentDescription = "Adicionar Melhore")
             }
         }
     ) { paddingValues ->
@@ -164,66 +195,6 @@ fun ReminderListScreen(
                     modifier = Modifier.semantics { contentDescription = "Aba Rotinas" }
                 )
             }
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(vertical = 8.dp)
-                ) {
-                    // Advanced filters toggle button
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            onClick = { viewModel.setShowAdvancedFilters(!showAdvancedFilters) },
-                            modifier = Modifier.semantics {
-                                contentDescription = if (showAdvancedFilters) {
-                                    "Ocultar filtros avançados"
-                                } else {
-                                    "Mostrar filtros avançados"
-                                }
-                            }
-                        ) {
-                            Text("Filtros avançados")
-                            Icon(
-                                imageVector = if (showAdvancedFilters) {
-                                    Icons.Default.ExpandLess
-                                } else {
-                                    Icons.Default.ExpandMore
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                        }
-                    }
-                    // Sort row always visible
-                    ReminderSortRow(
-                        sortOrder = sortOrder,
-                        onSortOrderChange = viewModel::setSortOrder
-                    )
-                    // Filter and group-by rows only when expanded
-                    if (showAdvancedFilters) {
-                        ReminderFilterRow(
-                            filter = filter,
-                            categories = categories,
-                            onFilterByCategoryIds = viewModel::setFilterByCategoryIds,
-                            onFilterPriorities = viewModel::setFilterPriorities,
-                            onFilterDateRange = viewModel::setFilterDateRange,
-                            onShowCompletedChange = viewModel::setShowCompleted,
-                            onShowCancelledChange = viewModel::setShowCancelled,
-                            onClearFilter = viewModel::clearFilter
-                        )
-                        ReminderGroupByRow(
-                            groupByTag = groupByTag,
-                            onGroupByTagChange = viewModel::setGroupByTag
-                        )
-                    }
-                }
-            }
             val showPendingSection = selectedTab == ReminderTab.TAREFAS && pendingConfirmationReminders.isNotEmpty()
             val isEmptyList = filteredRemindersWithChecklist.isEmpty() && !showPendingSection
             if (isEmptyList) {
@@ -239,7 +210,7 @@ fun ReminderListScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             Text(
-                                text = "Nenhum melhore com esses filtros",
+                                text = "Nenhum Melhore com esses filtros",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -259,7 +230,7 @@ fun ReminderListScreen(
                         ) {
                             Text(
                                 text = when (selectedTab) {
-                                    ReminderTab.TAREFAS -> "Nenhum melhore ainda"
+                                    ReminderTab.TAREFAS -> "Nenhum Melhore ainda"
                                     ReminderTab.ROTINAS -> "Nenhuma rotina ainda"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
@@ -267,8 +238,8 @@ fun ReminderListScreen(
                             )
                             Text(
                                 text = when (selectedTab) {
-                                    ReminderTab.TAREFAS -> "Toque em + para adicionar um melhore"
-                                    ReminderTab.ROTINAS -> "Crie um melhore e marque como Rotina para ver aqui"
+                                    ReminderTab.TAREFAS -> "Toque em + para adicionar um Melhore"
+                                    ReminderTab.ROTINAS -> "Crie um Melhore e marque como Rotina para ver aqui"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.outline
@@ -328,6 +299,41 @@ fun ReminderListScreen(
                 }
             }
         }
+        }
+        
+        // Sync status overlay banner at top
+        var showSyncBanner by remember { mutableStateOf(false) }
+        
+        // Show banner when sync status changes from Idle
+        LaunchedEffect(syncStatus) {
+            if (!isLocalOnly && syncStatus != SyncStatus.Idle) {
+                showSyncBanner = true
+                // Auto-hide after delay based on status
+                when (syncStatus) {
+                    is SyncStatus.Synced -> {
+                        delay(3000) // 3 seconds for "Sincronizado"
+                        showSyncBanner = false
+                    }
+                    is SyncStatus.Error -> {
+                        delay(5000) // 5 seconds for error
+                        showSyncBanner = false
+                    }
+                    else -> { } // Syncing stays visible
+                }
+            } else {
+                showSyncBanner = false
+            }
+        }
+        
+        if (!isLocalOnly && showSyncBanner && syncStatus != SyncStatus.Idle) {
+            SyncStatusBanner(
+                syncStatus = syncStatus,
+                onRetry = viewModel::retrySync,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(1f)
+            )
+        }
     }
 
     // Completion confirmation dialog
@@ -335,7 +341,7 @@ fun ReminderListScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissCompletionConfirmation() },
             title = { Text("Você tem certeza?") },
-            text = { Text("Deseja marcar este melhore como concluído?") },
+            text = { Text("Deseja marcar este Melhore como concluído?") },
             confirmButton = {
                 Button(
                     onClick = { viewModel.markAsCompleted(reminderId) }
@@ -351,6 +357,48 @@ fun ReminderListScreen(
                 }
             }
         )
+    }
+
+    // Filter bottom sheet
+    if (showFilterBottomSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.setShowFilterBottomSheet(false) },
+            sheetState = sheetState,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            FilterBottomSheetContent(
+                filter = filter,
+                categories = categories,
+                groupByTag = groupByTag,
+                onFilterByCategoryIds = viewModel::setFilterByCategoryIds,
+                onFilterPriorities = viewModel::setFilterPriorities,
+                onFilterDateRange = viewModel::setFilterDateRange,
+                onShowCompletedChange = viewModel::setShowCompleted,
+                onShowCancelledChange = viewModel::setShowCancelled,
+                onGroupByTagChange = viewModel::setGroupByTag,
+                onClearFilter = viewModel::clearFilter,
+                onDismiss = { viewModel.setShowFilterBottomSheet(false) }
+            )
+        }
+    }
+
+    // Sort bottom sheet
+    if (showSortBottomSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.setShowSortBottomSheet(false) },
+            sheetState = sheetState,
+            dragHandle = { BottomSheetDefaults.DragHandle() }
+        ) {
+            SortBottomSheetContent(
+                sortOrder = sortOrder,
+                onSortOrderChange = { order ->
+                    viewModel.setSortOrder(order)
+                    viewModel.setShowSortBottomSheet(false)
+                }
+            )
+        }
     }
 }
 
@@ -381,19 +429,21 @@ private fun LocalOnlyStatusRow() {
 }
 
 @Composable
-private fun SyncStatusRow(
+private fun SyncStatusBanner(
     syncStatus: SyncStatus,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     when (syncStatus) {
         is SyncStatus.Idle -> { }
         is SyncStatus.Syncing -> {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                modifier = modifier,
+                tonalElevation = 4.dp
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -412,8 +462,9 @@ private fun SyncStatusRow(
         }
         is SyncStatus.Synced -> {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                modifier = modifier,
+                tonalElevation = 4.dp
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -436,13 +487,14 @@ private fun SyncStatusRow(
         }
         is SyncStatus.Error -> {
             Surface(
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
+                modifier = modifier,
+                tonalElevation = 4.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -583,7 +635,7 @@ private fun ReminderFilterRow(
                 onClick = onClearFilter,
                 label = { Text("Todos") },
                 modifier = Modifier.semantics {
-                    contentDescription = "Mostrar todos os melhores"
+                    contentDescription = "Mostrar todos os Melhores"
                 }
             )
             filter.categoryIds.forEach { categoryId ->
@@ -721,9 +773,9 @@ private fun ReminderFilterRow(
                 label = { Text("Mostrar concluídos") },
                 modifier = Modifier.semantics {
                     contentDescription = if (filter.showCompleted) {
-                        "Ocultar melhores concluídos"
+                        "Ocultar Melhores concluídos"
                     } else {
-                        "Mostrar melhores concluídos"
+                        "Mostrar Melhores concluídos"
                     }
                 }
             )
@@ -733,9 +785,9 @@ private fun ReminderFilterRow(
                 label = { Text("Mostrar cancelados") },
                 modifier = Modifier.semantics {
                     contentDescription = if (filter.showCancelled) {
-                        "Ocultar melhores cancelados"
+                        "Ocultar Melhores cancelados"
                     } else {
-                        "Mostrar melhores cancelados"
+                        "Mostrar Melhores cancelados"
                     }
                 }
             )
@@ -1136,10 +1188,270 @@ private fun ReminderItem(
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Excluir melhore"
+                        contentDescription = "Excluir Melhore"
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBottomSheetContent(
+    filter: ReminderListFilter,
+    categories: List<CategoryEntity>,
+    groupByTag: Boolean,
+    onFilterByCategoryIds: (Set<Long>) -> Unit,
+    onFilterPriorities: (Set<Int>) -> Unit,
+    onFilterDateRange: (Long?, Long?) -> Unit,
+    onShowCompletedChange: (Boolean) -> Unit,
+    onShowCancelledChange: (Boolean) -> Unit,
+    onGroupByTagChange: (Boolean) -> Unit,
+    onClearFilter: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Filtros",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        // Categories filter
+        Text(
+            text = "Tags",
+            style = MaterialTheme.typography.titleMedium
+        )
+        val scrollState = rememberScrollState()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = filter.categoryIds.isEmpty(),
+                onClick = {
+                    onFilterByCategoryIds(emptySet())
+                },
+                label = { Text("Todas") }
+            )
+            filter.categoryIds.forEach { categoryId ->
+                val category = categories.find { it.id == categoryId } ?: return@forEach
+                FilterChip(
+                    selected = true,
+                    onClick = {
+                        onFilterByCategoryIds(filter.categoryIds - categoryId)
+                    },
+                    label = { Text(category.name) }
+                )
+            }
+            if (categories.isNotEmpty()) {
+                var categoryExpanded by remember { mutableStateOf(false) }
+                val availableToAdd = categories.filter { it.id !in filter.categoryIds }
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = "Adicionar tag",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tag") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(0.4f)
+                    )
+                    DropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }
+                    ) {
+                        availableToAdd.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.name) },
+                                onClick = {
+                                    onFilterByCategoryIds(filter.categoryIds + category.id)
+                                    categoryExpanded = false
+                                }
+                            )
+                        }
+                        if (availableToAdd.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("Nenhuma outra tag") },
+                                onClick = { categoryExpanded = false }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Priority filter
+        Text(
+            text = "Prioridade",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                Priority.LOW to "Baixa",
+                Priority.MEDIUM to "Média",
+                Priority.HIGH to "Alta",
+                Priority.URGENT to "Urgente"
+            ).forEach { (priority, label) ->
+                val selected = priority.ordinal in filter.priorityOrdinals
+                FilterChip(
+                    selected = selected,
+                    onClick = {
+                        val newSet = if (selected) {
+                            filter.priorityOrdinals - priority.ordinal
+                        } else {
+                            filter.priorityOrdinals + priority.ordinal
+                        }
+                        onFilterPriorities(newSet)
+                    },
+                    label = { Text(label) }
+                )
+            }
+        }
+        
+        // Date range filter
+        Text(
+            text = "Data",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val now = ZonedDateTime.now()
+            FilterChip(
+                selected = filter.dateFromMillis != null && filter.dateToMillis != null &&
+                    isNext7Days(filter.dateFromMillis, filter.dateToMillis),
+                onClick = {
+                    val from = now.toInstant().toEpochMilli()
+                    val to = now.plusDays(7).toInstant().toEpochMilli()
+                    onFilterDateRange(from, to)
+                },
+                label = { Text("Próximos 7 dias") }
+            )
+            FilterChip(
+                selected = filter.dateFromMillis != null && filter.dateToMillis != null &&
+                    isThisMonth(filter.dateFromMillis, filter.dateToMillis),
+                onClick = {
+                    val start = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0)
+                    val end = now.withDayOfMonth(now.toLocalDate().lengthOfMonth()).withHour(23).withMinute(59).withSecond(59).withNano(999_000_000)
+                    onFilterDateRange(start.toInstant().toEpochMilli(), end.toInstant().toEpochMilli())
+                },
+                label = { Text("Este mês") }
+            )
+            FilterChip(
+                selected = filter.dateFromMillis == null && filter.dateToMillis == null,
+                onClick = { onFilterDateRange(null, null) },
+                label = { Text("Sem filtro de data") }
+            )
+        }
+        
+        // Show completed/cancelled
+        Text(
+            text = "Status",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = filter.showCompleted,
+                onClick = { onShowCompletedChange(!filter.showCompleted) },
+                label = { Text("Mostrar concluídos") }
+            )
+            FilterChip(
+                selected = filter.showCancelled,
+                onClick = { onShowCancelledChange(!filter.showCancelled) },
+                label = { Text("Mostrar cancelados") }
+            )
+        }
+        
+        // Group by tag
+        Text(
+            text = "Exibição",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = groupByTag,
+                onClick = { onGroupByTagChange(true) },
+                label = { Text("Agrupar por tag") }
+            )
+            FilterChip(
+                selected = !groupByTag,
+                onClick = { onGroupByTagChange(false) },
+                label = { Text("Lista plana") }
+            )
+        }
+        
+        // Clear filter button
+        if (!filter.isAll()) {
+            Button(
+                onClick = {
+                    onClearFilter()
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Limpar filtros")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SortBottomSheetContent(
+    sortOrder: SortOrder,
+    onSortOrderChange: (SortOrder) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Ordenar",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        listOf(
+            SortOrder.DUE_DATE_ASC to "Por data",
+            SortOrder.PRIORITY_DESC_THEN_DUE_ASC to "Por prioridade",
+            SortOrder.TITLE_ASC to "Por título",
+            SortOrder.CREATED_AT_ASC to "Por criação",
+            SortOrder.CREATED_AT_DESC to "Mais recentes"
+        ).forEach { (order, label) ->
+            FilterChip(
+                selected = sortOrder == order,
+                onClick = { onSortOrderChange(order) },
+                label = { Text(label) },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -1159,7 +1471,7 @@ private fun ReminderListScreenEmptyPreview() {
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Nenhum melhore ainda")
+                Text("Nenhum Melhore ainda")
             }
         }
     }

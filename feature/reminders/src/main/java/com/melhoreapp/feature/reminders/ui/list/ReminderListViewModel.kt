@@ -1,6 +1,7 @@
 package com.melhoreapp.feature.reminders.ui.list
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.melhoreapp.core.auth.AuthRepository
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,6 +44,8 @@ data class ReminderSection(
     val tagLabel: String,
     val items: List<ReminderWithChecklist>
 )
+
+private const val TAG = "PendingConfirmation"
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -75,6 +80,12 @@ class ReminderListViewModel @Inject constructor(
 
     private val _showAdvancedFilters = MutableStateFlow(appPreferences.getShowAdvancedFilters())
     val showAdvancedFilters: StateFlow<Boolean> = _showAdvancedFilters.asStateFlow()
+
+    private val _showFilterBottomSheet = MutableStateFlow(false)
+    val showFilterBottomSheet: StateFlow<Boolean> = _showFilterBottomSheet.asStateFlow()
+
+    private val _showSortBottomSheet = MutableStateFlow(false)
+    val showSortBottomSheet: StateFlow<Boolean> = _showSortBottomSheet.asStateFlow()
 
     private val _completionConfirmationReminderId = MutableStateFlow<Long?>(null)
     val completionConfirmationReminderId: StateFlow<Long?> = _completionConfirmationReminderId.asStateFlow()
@@ -159,11 +170,47 @@ class ReminderListViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
-    val pendingConfirmationReminders: StateFlow<List<ReminderWithChecklist>> = remindersWithChecklist
-        .combine(kotlinx.coroutines.flow.flowOf(Unit)) { reminders, _ ->
+    // Unfiltered reminders + checklist (no date/category filter) so past-due items are always included
+    private val allRemindersWithChecklist: StateFlow<List<ReminderWithChecklist>> = combine(
+        userIdFlow.flatMapLatest { uid -> reminderDao.getAllReminders(uid) },
+        userIdFlow.flatMapLatest { uid -> checklistItemDao.getAllItems(uid) }
+    ) { reminders, allItems ->
+        reminders.map { reminder ->
+            val items = allItems.filter { it.reminderId == reminder.id }
+            ReminderWithChecklist(
+                reminder = reminder,
+                checkedCount = items.count { it.checked },
+                totalCount = items.size
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    // Periodic flow that emits every minute to trigger re-evaluation of pending confirmation reminders
+    // Emits immediately on start, then every minute thereafter
+    private val timeTickFlow: StateFlow<Unit> = flow {
+        emit(Unit) // Emit immediately on first subscription
+        while (true) {
+            delay(60_000) // Wait 1 minute
+            emit(Unit) // Emit every minute
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = Unit
+    )
+
+    // Pending confirmation: from UNFILTERED list so past-due reminders are never hidden by date/category filter.
+    // Only Tarefas (!isRoutine) so warning section matches Tarefas tab.
+    val pendingConfirmationReminders: StateFlow<List<ReminderWithChecklist>> = allRemindersWithChecklist
+        .combine(timeTickFlow) { reminders, _ ->
             val now = System.currentTimeMillis()
             reminders.filter { item ->
                 val reminder = item.reminder
+                if (reminder.isRoutine) return@filter false // Only show on Tarefas tab
                 val snoozedUntil = reminder.snoozedUntil
                 reminder.status == ReminderStatus.ACTIVE &&
                     reminder.dueAt <= now &&
@@ -176,13 +223,29 @@ class ReminderListViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Tab-filtered list: TAREFAS = non-task reminders, ROTINAS = routine (non-task) reminders (Sprint 12.3)
+    init {
+        viewModelScope.launch {
+            pendingConfirmationReminders.collect { list ->
+                Log.d(TAG, "pendingConfirmationReminders size=${list.size}, ids=${list.map { it.reminder.id }}, dueAts=${list.map { it.reminder.dueAt }}, titles=${list.map { it.reminder.title }}")
+            }
+        }
+        viewModelScope.launch {
+            allRemindersWithChecklist.collect { list ->
+                val now = System.currentTimeMillis()
+                val pastDue = list.count { it.reminder.dueAt <= now }
+                val activeNone = list.count { it.reminder.status == ReminderStatus.ACTIVE && it.reminder.type == RecurrenceType.NONE && !it.reminder.isRoutine }
+                Log.d(TAG, "allRemindersWithChecklist size=${list.size} pastDueCount=$pastDue ACTIVE+NONE+!isRoutine=$activeNone now=$now")
+            }
+        }
+    }
+
+    // Tab-filtered list: TAREFAS = includes task reminders (excludes Rotinas), ROTINAS = routine (non-task) reminders (Sprint 21)
     private val remindersWithChecklistForTab: StateFlow<List<ReminderWithChecklist>> = combine(
         remindersWithChecklist,
         _selectedTab
     ) { list, tab ->
         when (tab) {
-            ReminderTab.TAREFAS -> list.filter { !it.reminder.isTask && !it.reminder.isRoutine }
+            ReminderTab.TAREFAS -> list.filter { !it.reminder.isRoutine }
             ReminderTab.ROTINAS -> list.filter { it.reminder.isRoutine && !it.reminder.isTask }
         }
     }.stateIn(
@@ -326,6 +389,14 @@ class ReminderListViewModel @Inject constructor(
     fun setShowAdvancedFilters(show: Boolean) {
         _showAdvancedFilters.value = show
         appPreferences.setShowAdvancedFilters(show)
+    }
+
+    fun setShowFilterBottomSheet(show: Boolean) {
+        _showFilterBottomSheet.value = show
+    }
+
+    fun setShowSortBottomSheet(show: Boolean) {
+        _showSortBottomSheet.value = show
     }
 
     fun setSelectedTab(tab: ReminderTab) {

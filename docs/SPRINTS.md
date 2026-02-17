@@ -1140,6 +1140,38 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
+## Sprint 21 – Bug Fixes and UI Improvements
+
+**Goal:** Fix critical bugs and improve UI: Tarefas visibility, Rotina notification prevention, UI rearrangement, hourly pending confirmation check, and "Melhore" branding capitalization.
+
+**Deliverables:**
+
+- **Tarefas visibility fix:** Task reminders created by Rotinas now appear in the Tarefas list immediately after creation, even before their scheduled start time. Updated Tarefas tab filter to include task reminders (`isTask=true`) while excluding Rotinas (`isRoutine=false`).
+- **Rotina notification prevention:** Rotinas do not notify if tasks already exist for the current period. Before showing a Rotina notification, `ReminderAlarmReceiver` checks for existing tasks using `RotinaPeriodHelper`; if tasks exist, the notification is skipped and the Rotina advances to the next occurrence.
+- **Rotina period helper:** Extracted period calculation logic from `RotinaTaskSetupViewModel` to shared `RotinaPeriodHelper` utility class in `core:scheduling`. Provides `getCurrentPeriodStart()`, `getCurrentPeriodEnd()`, and `isWithinPeriod()` methods used by both `RotinaTaskSetupViewModel` and `ReminderAlarmReceiver`.
+- **UI rearrangement:**
+  - **Sync banner overlay:** Sync status appears as overlay strip banner at top (doesn't push content down). Uses `Box` with `zIndex` to overlay on top of content.
+  - **Filter/sort icons:** Filter and sort options accessible via icons in TopAppBar (filter icon with badge indicator when filters are active, sort icon). Clicking icons opens Material3 bottom sheets (`FilterBottomSheetContent`, `SortBottomSheetContent`) with filter/sort options. Removed "Filtros avançados" button and filter/sort rows from Surface.
+- **Hourly pending confirmation check:** `PendingConfirmationCheckWorker` (WorkManager periodic worker) runs every hour to check for pending confirmation reminders and notifies the user if any are found. Scheduled in `MelhoreApplication.onCreate()` using `enqueueUniquePeriodicWork()` with `KEEP` policy. Worker checks reminders matching pending confirmation criteria (ACTIVE, past due, not snoozed or snooze expired, non-recurring) and shows notification with reminder titles.
+- **"Melhore" branding capitalization:** All UI strings referring to "Melhore" (the reminder type) now have the 'M' capitalized for consistent branding. Updated strings in `ReminderListScreen`, `AddReminderScreen`, and `TemplatesComingSoonScreen`. App name "MelhoreApp" remains unchanged.
+
+**Done criteria:**
+
+- [x] Tarefas created by Rotinas appear in Tarefas list immediately after creation
+- [x] Rotinas do not notify when tasks already exist for the current period
+- [x] Sync status appears as overlay strip banner at top (doesn't push content)
+- [x] Filter and sort options accessible via icons in TopAppBar (bottom sheets)
+- [x] Active filter/sort states visible via icon indicators (badge on filter icon)
+- [x] Hourly worker checks for PENDENTE CONFIRMAÇÃO reminders and notifies
+- [x] All UI strings use "Melhore" with capital M (except app name "MelhoreApp")
+- [x] Documentation updated (CONTEXT, ARCHITECTURE, SPRINTS, TESTING)
+
+**Status:** Done.
+
+**Lessons learned:** Extracting shared period calculation logic to `RotinaPeriodHelper` improves code reuse and maintainability. Material3 bottom sheets provide a clean way to present filter/sort options without cluttering the main UI. Overlay sync banner using `Box` with `zIndex` allows status display without affecting layout. WorkManager periodic workers are suitable for background checks like pending confirmation reminders. Consistent branding capitalization improves user experience and brand recognition.
+
+---
+
 ## Sprint 20 – Documentation and release prep
 
 **Goal:** Docs and release readiness.

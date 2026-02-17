@@ -746,6 +746,74 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 
 ---
 
+## Sprint 21 – Bug Fixes and UI Improvements
+
+### Tarefas Visibility Fix
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a Rotina reminder (e.g., daily Rotina). | Rotina is created. |
+| 2 | Navigate to Rotina task setup screen and add tasks for the current period. | Tasks are created successfully. |
+| 3 | Navigate back to the Melhores screen and select **Tarefas** tab. | Tasks appear in the Tarefas list immediately, even if their scheduled start time is in the future. |
+| 4 | Verify tasks are not shown in **Rotinas** tab. | Tasks do not appear in Rotinas tab (only Rotina reminders appear). |
+
+### Rotina Notification Prevention
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a daily Rotina reminder with a notification time (e.g., 9:00 AM). | Rotina is created and scheduled. |
+| 2 | Add tasks for today via the task setup screen. | Tasks are created for the current period. |
+| 3 | Wait for the Rotina notification time (or manually trigger if testing). | Rotina notification does **not** appear because tasks already exist for the current period. |
+| 4 | Verify Rotina advances to next occurrence. | Rotina's `dueAt` is updated to the next occurrence (e.g., tomorrow). |
+| 5 | Create a weekly Rotina and add tasks for the current week. | Tasks are created. |
+| 6 | Wait for Rotina notification time. | Rotina notification does **not** appear because tasks exist for the current week. |
+| 7 | Delete all tasks for the current period and wait for next Rotina notification. | Rotina notification appears normally (no tasks exist). |
+
+### Sync Banner Overlay
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Open the app and navigate to Melhores screen (while signed in). | Sync status appears as overlay strip banner at the top, covering part of the TopAppBar without pushing content down. |
+| 2 | Observe sync status during sync. | Banner shows "Sincronizando…" with sync icon. |
+| 3 | Wait for sync to complete. | Banner shows "Sincronizado" with check icon. |
+| 4 | If sync error occurs, observe banner. | Banner shows "Erro de sincronização" with error icon and "Tentar novamente" button. |
+| 5 | Verify content below is not pushed down. | Content (tabs, list) remains in the same position; banner overlays on top. |
+
+### Filter and Sort Icons
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Navigate to Melhores screen. | Filter icon (with badge if filters are active) and sort icon appear in TopAppBar actions. |
+| 2 | Tap the **filter icon**. | Bottom sheet opens with filter options (tags, priority, date, status, group-by). |
+| 3 | Apply filters (e.g., select a tag, set priority). | Filters are applied; filter icon shows badge indicator. |
+| 4 | Close bottom sheet and observe filter icon. | Filter icon is tinted (primary color) and shows badge when filters are active. |
+| 5 | Tap the **sort icon**. | Bottom sheet opens with sort options (Por data, Por prioridade, Por título, Por criação, Mais recentes). |
+| 6 | Select a sort option. | Sort is applied; bottom sheet closes automatically. |
+| 7 | Verify filter/sort functionality. | Filtering and sorting work as before; UI is more compact. |
+
+### Hourly Pending Confirmation Check
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a reminder with a past due date (non-recurring, ACTIVE status). | Reminder is created and is in "PENDENTE CONFIRMAÇÃO" state. |
+| 2 | Close the app completely (or wait 1 hour). | App is closed. |
+| 3 | Wait 1 hour (or trigger worker manually for testing). | Notification appears: "Melhores pendentes de confirmação" with list of reminder titles. |
+| 4 | Tap the notification. | App opens to Tarefas tab showing pending confirmation warning section. |
+| 5 | Complete or cancel the reminder. | Reminder is no longer pending. |
+| 6 | Wait another hour. | Notification does **not** appear (no pending reminders). |
+
+### "Melhore" Branding Capitalization
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Navigate through all screens and observe UI text. | All references to "Melhore" (the reminder type) have capital 'M': "Adicionar Melhore", "Novo Melhore", "Salvar Melhore", "Nenhum Melhore ainda", etc. |
+| 2 | Verify app name remains unchanged. | App name "MelhoreApp" remains as-is (not changed). |
+| 3 | Check empty states, dialogs, and error messages. | All UI strings consistently use "Melhore" with capital M. |
+
+**Validation:** Tarefas tab includes task reminders; Rotinas do not notify when tasks exist; sync banner overlays without pushing content; filter/sort icons open bottom sheets; active states are visible; hourly worker notifies for pending confirmation; all UI strings use "Melhore" with capital M.
+
+---
+
 ## Troubleshooting
 
 - **Notifications do not fire at due time (especially on Android 14+):** Exact alarms require the `SCHEDULE_EXACT_ALARM` permission. On Android 12+ (API 31) the app may need the user to grant "Alarms & reminders" or use exact alarms in **Settings → Apps → MelhoreApp → Alarms & reminders** (wording may vary by device). If the permission is denied, alarms may be inexact and delivery can be delayed.

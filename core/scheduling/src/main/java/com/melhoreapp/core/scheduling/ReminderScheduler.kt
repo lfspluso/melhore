@@ -108,6 +108,74 @@ class ReminderScheduler(
             )
             alarmManager.cancel(snoozePending)
         }
+        cancelPendingConfirmationCheck(reminderId)
+    }
+
+    /**
+     * Schedules a one-time alarm at dueAt + 60 minutes to trigger the
+     * "pending confirmation" check (and possible notification) for this one-time reminder.
+     * Uses the same alarm API as the main reminder (setAlarmClock) for reliable delivery.
+     * Only schedules if the trigger time is in the future. Call when creating/updating a
+     * one-time (NONE) reminder or when rescheduling after boot.
+     */
+    fun schedulePendingConfirmationCheck(reminderId: Long, dueAtMillis: Long) {
+        try {
+            val now = System.currentTimeMillis()
+            val triggerAt = dueAtMillis + PENDING_CONFIRMATION_DELAY_MS
+            if (triggerAt <= now) {
+                Log.d(TAG, "Skipped pending-confirmation alarm: reminderId=$reminderId triggerAt=$triggerAt <= now=$now (dueAt+60min in past)")
+                return
+            }
+            val intent = Intent(context, PendingConfirmationAlarmReceiver::class.java).apply {
+                setPackage(context.packageName)
+                action = PendingConfirmationAlarmReceiver.ACTION_PENDING_CONFIRMATION_CHECK
+                putExtra(PendingConfirmationAlarmReceiver.EXTRA_REMINDER_ID, reminderId)
+            }
+            val pending = PendingIntent.getBroadcast(
+                context,
+                pendingConfirmationRequestCode(reminderId),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val showIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+                    PendingIntent.getActivity(
+                        context,
+                        0,
+                        it,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                }
+                alarmManager.setAlarmClock(
+                    AlarmManager.AlarmClockInfo(triggerAt, showIntent),
+                    pending
+                )
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+            } else {
+                @Suppress("DEPRECATION")
+                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pending)
+            }
+            Log.d(TAG, "Scheduled pending-confirmation check for reminderId=$reminderId at $triggerAt (dueAt=$dueAtMillis)")
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Could not schedule pending-confirmation alarm: reminderId=$reminderId", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule pending-confirmation check: reminderId=$reminderId", e)
+        }
+    }
+
+    fun cancelPendingConfirmationCheck(reminderId: Long) {
+        val intent = Intent(context, PendingConfirmationAlarmReceiver::class.java).apply {
+            setPackage(context.packageName)
+            action = PendingConfirmationAlarmReceiver.ACTION_PENDING_CONFIRMATION_CHECK
+        }
+        val pending = PendingIntent.getBroadcast(
+            context,
+            pendingConfirmationRequestCode(reminderId),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pending)
     }
 
     /**
@@ -130,6 +198,9 @@ class ReminderScheduler(
                     notes = reminder.notes.ifEmpty() { "Reminder" },
                     isSnoozeFire = isSnoozeFire
                 )
+            }
+            if (reminder.type == RecurrenceType.NONE) {
+                schedulePendingConfirmationCheck(reminder.id, reminder.dueAt)
             }
         }
     }
@@ -168,10 +239,17 @@ class ReminderScheduler(
         }
     }
 
+    private fun pendingConfirmationRequestCode(reminderId: Long): Int =
+        PENDING_CONFIRMATION_REQUEST_CODE_OFFSET + reminderId.toInt()
+
     companion object {
         // Offset for 30-minute recurring reminders (different from main reminder alarm)
         const val THIRTY_MIN_REMINDER_OFFSET = 2_000_000
-        
+
+        /** Delay after a one-time reminder's due time before running the pending-confirmation check (60 minutes). */
+        const val PENDING_CONFIRMATION_DELAY_MS = 60 * 60 * 1000L
+        private const val PENDING_CONFIRMATION_REQUEST_CODE_OFFSET = 3_000_000
+
         private const val MIN_FUTURE_MS = 1000L
         private const val TAG = "ReminderScheduler"
     }

@@ -76,7 +76,7 @@ fun TemplatesComingSoonScreen(onBack: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Em breve você poderá usar modelos para criar melhores mais rápido.",
+                text = "Em breve você poderá usar modelos para criar Melhores mais rápido.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

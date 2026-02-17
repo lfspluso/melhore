@@ -217,6 +217,10 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(reminderId, _dueAt.value, t, existing.notes, isSnoozeFire = false)
+                reminderScheduler.cancelPendingConfirmationCheck(reminderId)
+                if (_recurrenceType.value == RecurrenceType.NONE) {
+                    reminderScheduler.schedulePendingConfirmationCheck(reminderId, _dueAt.value)
+                }
                 if (uid != "local") syncRepository.uploadAllInBackground(uid)
             } else {
                 val customDaysString = if (_recurrenceType.value == RecurrenceType.CUSTOM) {
@@ -255,6 +259,9 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(id, _dueAt.value, t, entity.notes, isSnoozeFire = false)
+                if (_recurrenceType.value == RecurrenceType.NONE) {
+                    reminderScheduler.schedulePendingConfirmationCheck(id, _dueAt.value)
+                }
                 if (uid != "local") syncRepository.uploadAllInBackground(uid)
             }
             Result.success(Unit)

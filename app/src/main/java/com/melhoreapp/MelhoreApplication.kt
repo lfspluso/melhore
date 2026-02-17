@@ -9,6 +9,7 @@ import com.melhoreapp.core.notifications.NotificationHelper
 import com.melhoreapp.core.scheduling.ReminderScheduler
 import com.melhoreapp.core.scheduling.SchedulingContext
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -28,6 +29,11 @@ class MelhoreApplication : Application(), Configuration.Provider, SchedulingCont
         // Initialize WorkManager with HiltWorkerFactory so ReminderWorker (HiltWorker) can be created.
         WorkManager.initialize(this, workManagerConfiguration)
         NotificationHelper.createChannels(this)
+        // Pending-confirmation notification is triggered by per-reminder alarms at dueAt+60min (see ReminderScheduler.schedulePendingConfirmationCheck)
+        // Reschedule all alarms (including pending-confirmation) on app start so they are set even if app was killed or alarm was lost
+        Thread {
+            runBlocking { reminderScheduler.rescheduleAllUpcomingReminders() }
+        }.start()
     }
 
     override val workManagerConfiguration: Configuration

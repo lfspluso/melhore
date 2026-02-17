@@ -36,6 +36,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:notifications"))
     implementation(project(":core:database"))
+    implementation(project(":core:auth"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.android)

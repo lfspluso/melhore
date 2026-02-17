@@ -34,5 +34,12 @@
                 <action android:name="com.melhoreapp.core.scheduling.CONTINUE_TASK" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".PendingConfirmationAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.melhoreapp.core.scheduling.PENDING_CONFIRMATION_CHECK" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
