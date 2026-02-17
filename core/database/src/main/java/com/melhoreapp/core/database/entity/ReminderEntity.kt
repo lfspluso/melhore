@@ -34,7 +34,9 @@ import androidx.room.PrimaryKey
         Index("parentReminderId"),
         Index("isTask"),
         Index("status"),
+        Index("userId"),
         Index(value = ["status", "dueAt"]),
+        Index(value = ["userId", "status", "dueAt"]),
         Index(value = ["isTask", "status"]),
         Index("startTime"),
         Index(value = ["parentReminderId", "startTime", "dueAt"])
@@ -43,6 +45,7 @@ import androidx.room.PrimaryKey
 data class ReminderEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: String? = "local", // Nullable in DB (migration 6→7); treat null as "local"
     val title: String,
     val notes: String = "",
     val type: RecurrenceType = RecurrenceType.NONE,

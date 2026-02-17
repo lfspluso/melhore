@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -37,7 +39,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -62,6 +66,7 @@ import com.melhoreapp.core.common.RecurrenceDaysConverter
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.ReminderStatus
+import com.melhoreapp.core.sync.SyncStatus
 import com.melhoreapp.core.scheduling.nextOccurrenceMillis
 import java.time.DayOfWeek
 import java.time.Instant
@@ -87,25 +92,33 @@ fun ReminderListScreen(
     val groupedSections by viewModel.groupedSections.collectAsState()
     val showAdvancedFilters by viewModel.showAdvancedFilters.collectAsState()
     val completionConfirmationReminderId by viewModel.completionConfirmationReminderId.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
     val hasActiveFilter = !filter.isAll()
+    val syncStatus by viewModel.syncStatus.collectAsState(initial = SyncStatus.Idle)
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Melhore, Maria Luiza") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ),
-                actions = {
-                    IconButton(onClick = onTemplatesClick) {
-                        Icon(
-                            Icons.Default.DashboardCustomize,
-                            contentDescription = "Modelos de lembretes"
-                        )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                TopAppBar(
+                    title = { Text("Melhore, Maria Luiza") },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    actions = {
+                        IconButton(onClick = onTemplatesClick) {
+                            Icon(
+                                Icons.Default.DashboardCustomize,
+                                contentDescription = "Modelos de lembretes"
+                            )
+                        }
                     }
-                }
-            )
+                )
+                SyncStatusRow(
+                    syncStatus = syncStatus,
+                    onRetry = viewModel::retrySync
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(
@@ -122,6 +135,30 @@ fun ReminderListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            PrimaryTabRow(
+                selectedTabIndex = if (selectedTab == ReminderTab.TAREFAS) 0 else 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = when (selectedTab) {
+                            ReminderTab.TAREFAS -> "Aba Tarefas selecionada"
+                            ReminderTab.ROTINAS -> "Aba Rotinas selecionada"
+                        }
+                    }
+            ) {
+                Tab(
+                    selected = selectedTab == ReminderTab.TAREFAS,
+                    onClick = { viewModel.setSelectedTab(ReminderTab.TAREFAS) },
+                    text = { Text("Tarefas") },
+                    modifier = Modifier.semantics { contentDescription = "Aba Tarefas" }
+                )
+                Tab(
+                    selected = selectedTab == ReminderTab.ROTINAS,
+                    onClick = { viewModel.setSelectedTab(ReminderTab.ROTINAS) },
+                    text = { Text("Rotinas") },
+                    modifier = Modifier.semantics { contentDescription = "Aba Rotinas" }
+                )
+            }
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.fillMaxWidth()
@@ -182,7 +219,9 @@ fun ReminderListScreen(
                     }
                 }
             }
-            if (filteredRemindersWithChecklist.isEmpty() && pendingConfirmationReminders.isEmpty()) {
+            val showPendingSection = selectedTab == ReminderTab.TAREFAS && pendingConfirmationReminders.isNotEmpty()
+            val isEmptyList = filteredRemindersWithChecklist.isEmpty() && !showPendingSection
+            if (isEmptyList) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -214,12 +253,18 @@ fun ReminderListScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Nenhum melhore ainda",
+                                text = when (selectedTab) {
+                                    ReminderTab.TAREFAS -> "Nenhum melhore ainda"
+                                    ReminderTab.ROTINAS -> "Nenhuma rotina ainda"
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Toque em + para adicionar um melhore",
+                                text = when (selectedTab) {
+                                    ReminderTab.TAREFAS -> "Toque em + para adicionar um melhore"
+                                    ReminderTab.ROTINAS -> "Crie um melhore e marque como Rotina para ver aqui"
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.outline
                             )
@@ -234,8 +279,8 @@ fun ReminderListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Warning section for pending confirmation reminders (appears above all other tasks)
-                    if (pendingConfirmationReminders.isNotEmpty()) {
+                    // Warning section for pending confirmation (Tarefas tab only)
+                    if (showPendingSection) {
                         item(key = "warning_section") {
                             PendingConfirmationWarningSection(
                                 pendingReminders = pendingConfirmationReminders,
@@ -301,6 +346,97 @@ fun ReminderListScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun SyncStatusRow(
+    syncStatus: SyncStatus,
+    onRetry: () -> Unit
+) {
+    when (syncStatus) {
+        is SyncStatus.Idle -> { }
+        is SyncStatus.Syncing -> {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.padding(2.dp)
+                    )
+                    Text(
+                        "Sincronizando…",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        is SyncStatus.Synced -> {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.padding(2.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Sincronizado",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        is SyncStatus.Error -> {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            "Erro de sincronização",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    Button(
+                        onClick = onRetry,
+                        content = { Text("Tentar novamente") }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -1003,6 +1139,7 @@ private fun ReminderListScreenEmptyPreview() {
 private fun ReminderListScreenWithItemsPreview() {
     val reminder = ReminderEntity(
         id = 1,
+        userId = "preview",
         title = "Call mom",
         dueAt = System.currentTimeMillis() + 3600_000,
         priority = Priority.HIGH,

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.melhoreapp.core.common.preferences.AppPreferences
 import com.melhoreapp.core.database.MelhoreDatabase
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.RecurrenceType
@@ -21,7 +22,8 @@ import kotlinx.coroutines.withContext
 class ReminderScheduler(
     private val context: Context,
     private val alarmManager: AlarmManager,
-    private val database: MelhoreDatabase
+    private val database: MelhoreDatabase,
+    private val appPreferences: AppPreferences
 ) {
 
     fun scheduleReminder(
@@ -113,8 +115,9 @@ class ReminderScheduler(
      * since alarms are cleared on device reboot.
      */
     suspend fun rescheduleAllUpcomingReminders() = withContext(Dispatchers.IO) {
+        val userId = appPreferences.getLastUserId() ?: "local"
         val now = System.currentTimeMillis()
-        val active = database.reminderDao().getActiveReminders()
+        val active = database.reminderDao().getActiveReminders(userId)
         active.forEach { reminder ->
             val triggerAt = computeTriggerTime(reminder)
             if (triggerAt != null) {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -247,6 +248,17 @@ fun SettingsScreen(
                     checked = autoDeleteCompleted,
                     onCheckedChange = viewModel::setAutoDeleteCompletedReminders
                 )
+            }
+            Text(
+                text = "Conta",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
+            )
+            Button(
+                onClick = viewModel::signOut
+            ) {
+                Text("Sair")
             }
         }
     }

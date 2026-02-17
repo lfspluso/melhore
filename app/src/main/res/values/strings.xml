@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Melhore</string>
+    <!-- Web client ID from Firebase Console (Project settings → Your apps → Web app OAuth 2.0 client ID). Required for Google Sign-In. -->
+    <string name="default_web_client_id" translatable="false">75415089588-rm03vk34h5eiqqd7sl9qm4e7944ght79.apps.googleusercontent.com</string>
 </resources>

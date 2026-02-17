@@ -4,7 +4,7 @@
 
 MelhoreApp uses **Room** (Android's SQLite abstraction layer) for local data persistence. The database is designed to support reminders (Melhores), categories (Tags), lists, and checklist items with proper relationships, indexes, and data integrity constraints.
 
-**Current Database Version:** 6  
+**Current Database Version:** 7  
 **Database Name:** `melhore_db`  
 **Location:** `/data/data/com.melhoreapp/databases/melhore_db`
 
@@ -23,6 +23,7 @@ The core entity representing reminders (Melhores) and routines (Rotinas).
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | `id` | Long | No | Primary key (auto-generated) |
+| `userId` | String | No | Owner user ID (Firebase UID or 'local' for pre-sign-in data; Sprint 17) |
 | `title` | String | No | Reminder title |
 | `notes` | String | No | Additional notes (default: "") |
 | `type` | RecurrenceType | No | Recurrence pattern (NONE, DAILY, WEEKLY, BIWEEKLY, MONTHLY, CUSTOM) |
@@ -48,8 +49,8 @@ The core entity representing reminders (Melhores) and routines (Rotinas).
 - `parentReminderId` → `reminders.id` (CASCADE on delete)
 
 **Indexes:**
-- Single-column: `categoryId`, `listId`, `dueAt`, `parentReminderId`, `isTask`, `status`, `startTime`
-- Composite: `(status, dueAt)`, `(isTask, status)`, `(parentReminderId, startTime, dueAt)`
+- Single-column: `categoryId`, `listId`, `dueAt`, `parentReminderId`, `isTask`, `status`, `startTime`, `userId`
+- Composite: `(status, dueAt)`, `(userId, status, dueAt)`, `(isTask, status)`, `(parentReminderId, startTime, dueAt)`
 
 **Relationships:**
 - One-to-many with `CategoryEntity` (optional)
@@ -66,6 +67,7 @@ Represents tags/categories used to organize reminders.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | `id` | Long | No | Primary key (auto-generated) |
+| `userId` | String | No | Owner user ID (Sprint 17) |
 | `name` | String | No | Category name |
 | `colorArgb` | Int | Yes | Color ARGB value |
 | `sortOrder` | Int | No | Sort order for display |
@@ -96,6 +98,7 @@ Represents checklist items (sub-tasks) for reminders.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | `id` | Long | No | Primary key (auto-generated) |
+| `userId` | String | No | Owner user ID (Sprint 17) |
 | `reminderId` | Long | No | Foreign key to `reminders` table |
 | `label` | String | No | Checklist item text |
 | `sortOrder` | Int | No | Sort order within reminder |
@@ -117,24 +120,28 @@ Represents checklist items (sub-tasks) for reminders.
 
 | Method | Query Pattern | Index Used | Purpose |
 |--------|---------------|------------|---------|
-| `getAllReminders()` | `SELECT * FROM reminders ORDER BY dueAt ASC` | `dueAt` | Get all reminders |
-| `getUpcomingActiveReminders()` | `WHERE status = 'ACTIVE' AND dueAt > :afterMillis ORDER BY dueAt ASC` | `(status, dueAt)` | Get active reminders after timestamp |
-| `getActiveReminders()` | `WHERE status = 'ACTIVE' ORDER BY dueAt ASC` | `status` | Get all active reminders |
-| `getTasksByParentReminderId()` | `WHERE parentReminderId = :id ORDER BY startTime ASC, dueAt ASC` | `(parentReminderId, startTime, dueAt)` | Get child tasks for Rotina |
-| `getAllRemindersExcludingTasks()` | `WHERE isTask = 0 ORDER BY dueAt ASC` | `isTask` | Get reminders excluding tasks |
-| `getRemindersByCategoryIds()` | `WHERE categoryId IN (:ids) ORDER BY dueAt ASC` | `categoryId` | Filter by multiple categories |
+| `getAllReminders(userId)` | `SELECT * FROM reminders WHERE userId = :userId ORDER BY dueAt ASC` | `userId`, `dueAt` | Get all reminders for user |
+| `getReminderById(id)` | `SELECT * FROM reminders WHERE id = :id` | Primary key | Get single reminder (used by receivers; no userId) |
+| `getUpcomingActiveReminders(userId, afterMillis)` | `WHERE userId = :userId AND status = 'ACTIVE' AND dueAt > :afterMillis ...` | `(userId, status, dueAt)` | Get active reminders after timestamp |
+| `getActiveReminders(userId)` | `WHERE userId = :userId AND status = 'ACTIVE' ...` | `userId`, `status` | Get all active reminders (e.g. boot reschedule) |
+| `getTasksByParentReminderId(userId, parentReminderId)` | `WHERE userId = :userId AND parentReminderId = :id ...` | `(parentReminderId, startTime, dueAt)` | Get child tasks for Rotina |
+| `getAllRemindersExcludingTasks(userId)` | `WHERE userId = :userId AND isTask = 0 ...` | `userId`, `isTask` | Get reminders excluding tasks |
+| `getRemindersByCategoryIds(userId, categoryIds)` | `WHERE userId = :userId AND categoryId IN (:ids) ...` | `userId`, `categoryId` | Filter by multiple categories |
 
 ### CategoryDao
 
 **Key Queries:**
-- `getAllCategories()` - Get all categories ordered by sortOrder and name
-- `getCategoryById()` - Get single category by ID
+- `getAllCategories(userId)` - Get all categories for user, ordered by sortOrder and name
+- `getCategoryById(userId, id)` - Get single category by ID for user
+- `migrateLocalUserIdTo(newUserId)` - Assign rows with `userId = 'local'` to signed-in user (Sprint 17)
 
 ### ChecklistItemDao
 
 **Key Queries:**
-- `getItemsByReminderId()` - Get checklist items for a reminder (indexed by `reminderId`)
-- `getAllItems()` - Get all checklist items (for list progress calculation)
+- `getItemsByReminderId(userId, reminderId)` - Get checklist items for a reminder (indexed by `reminderId`)
+- `getAllItems(userId)` - Get all checklist items for user (for list progress calculation)
+- `deleteByReminderId(userId, reminderId)` - Delete all items for a reminder
+- `migrateLocalUserIdTo(newUserId)` - Assign rows with `userId = 'local'` to signed-in user (Sprint 17)
 
 ### ListDao
 
@@ -170,6 +177,13 @@ Represents checklist items (sub-tasks) for reminders.
 - Added composite index on `(isTask, status)`
 - Added index on `startTime` column
 - Added composite index on `(parentReminderId, startTime, dueAt)`
+
+### Migration 6→7 (Sprint 17 - User scoping)
+- Added `userId` column (TEXT, nullable in migration) to `reminders`, `categories`, `checklist_items`
+- Backfilled existing rows with `userId = 'local'`
+- Added index on `reminders.userId` and composite index on `(userId, status, dueAt)` for user-scoped queries
+- All DAO list/scope queries now take `userId`; `getReminderById(id)` unchanged for broadcast receivers
+- On sign-in, app runs one-off migration: rows with `userId = 'local'` are updated to the signed-in user's ID
 
 **Migration Strategy:**
 - All migrations use `IF NOT EXISTS` for idempotency

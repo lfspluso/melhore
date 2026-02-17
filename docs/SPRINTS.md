@@ -2,6 +2,8 @@
 
 Each sprint ends with a runnable, testable slice. Update this file after each sprint (done criteria, lessons learned).
 
+**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19. **Not started:** Sprint 20.
+
 ---
 
 ## Sprint 0 – Project bootstrap (no app logic)
@@ -266,17 +268,17 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Toggle "Filtros avançados" hides/shows advanced filters
-- [ ] Sort row always visible
-- [ ] Default sort is "Por data" (closest first) when no preference saved
-- [ ] App launches in dark mode by default
-- [ ] Dark theme uses minimalistic muted colors
-- [ ] Filter/sort preferences persist across restarts
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 10 section).
+- [x] Toggle "Filtros avançados" hides/shows advanced filters
+- [x] Sort row always visible
+- [x] Default sort is "Por data" (closest first) when no preference saved
+- [x] App launches in dark mode by default
+- [x] Dark theme uses minimalistic muted colors
+- [x] Filter/sort preferences persist across restarts
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 10 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Hiding advanced filters behind a toggle reduces clutter while keeping sort options always visible. Default dark mode and DUE_DATE_ASC (closest first) improve UX; filter/sort/group-by preferences are persisted in AppPreferences and restored on app start.
 
 ---
 
@@ -376,18 +378,18 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Reminder list shows next notification date (or "MELHORADO" for completed non-recurring)
-- [ ] Snoozed reminders show snooze time as next notification
-- [ ] Recurring reminders show calculated next occurrence
-- [ ] Settings screen has auto-delete toggle
-- [ ] When enabled, non-recurring reminders are deleted after notification fires
-- [ ] When enabled, all past non-recurring reminders are deleted immediately
-- [ ] Setting persists across app restarts
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 11.5 section).
+- [x] Reminder list shows next notification date (or "MELHORADO" for completed non-recurring)
+- [x] Snoozed reminders show snooze time as next notification
+- [x] Recurring reminders show calculated next occurrence
+- [x] Settings screen has auto-delete toggle
+- [x] When enabled, non-recurring reminders are deleted after notification fires
+- [x] When enabled, all past non-recurring reminders are deleted immediately
+- [x] Setting persists across app restarts
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 11.5 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Next notification date is computed in `getNextNotificationDate()` (snoozed → recurring next occurrence → non-recurring dueAt or empty for past). The auto-delete behavior was reworked in Sprint 13 to "delete after completion" (COMPLETED status only), implemented via the Settings toggle "Excluir automaticamente lembretes concluídos" and ReminderAlarmReceiver/ReminderScheduler.
 
 ---
 
@@ -620,18 +622,18 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Period calculation works correctly for all recurrence types (daily, weekly, biweekly, monthly, custom)
-- [ ] Tasks can only be created/scheduled within the current period boundaries
-- [ ] Time picker restricts selection to current period
-- [ ] Visual indicator shows current period in the UI
-- [ ] Validation prevents saving tasks outside current period
-- [ ] After saving tasks, navigation returns to Melhore home page (reminders list)
-- [ ] Back stack is properly cleared when navigating home
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12.2.1 section).
+- [x] Period calculation works correctly for all recurrence types (daily, weekly, biweekly, monthly, custom)
+- [x] Tasks can only be created/scheduled within the current period boundaries
+- [x] Time picker restricts selection to current period
+- [x] Visual indicator shows current period in the UI
+- [x] Validation prevents saving tasks outside current period
+- [x] After saving tasks, navigation returns to Melhore home page (reminders list)
+- [x] Back stack is properly cleared when navigating home
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 12.2.1 section).
 
-**Status:** In progress.
+**Status:** Done.
 
-**Lessons learned:** *(To be added after implementation)*
+**Lessons learned:** Period boundaries are computed in RotinaTaskSetupViewModel with `getCurrentPeriodStart()` and `getCurrentPeriodEnd()` using `java.time` (ZoneId, ZonedDateTime, WeekFields for locale-based week). Date picker uses Material 3 `SelectableDates` to restrict selectable dates to the current period; time picker clamps the result to period bounds. Validation in `updateTask()` and `saveTasks()` prevents saving tasks outside the period and surfaces a single error message. Navigation to Melhore home after save/skip was already implemented in MelhoreNavHost via `popUpTo(startDestination) { inclusive = true }`.
 
 ---
 
@@ -644,7 +646,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 - **feature:reminders/ui/list/ReminderListScreen.kt:**
   - Add tab row below top app bar
   - Two tabs: "Tarefas" (Tasks) and "Rotinas" (Routines)
-  - Default tab: "Tarefas" (shows regular reminders, excludes child task reminders)
+  - Default tab: "Tarefas" (shows regular reminders only: excludes child task reminders and Rotinas; i.e. `isTask == false` and `isRoutine == false`)
   - "Rotinas" tab: shows only Rotina reminders (`isRoutine == true` and `isTask == false`)
 
 - **feature:reminders/ui/list/ReminderListViewModel.kt:**
@@ -660,18 +662,18 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Tab row appears below top app bar in ReminderListScreen
-- [ ] Two tabs: "Tarefas" and "Rotinas"
-- [ ] "Tarefas" tab shows regular reminders (excludes child task reminders)
-- [ ] "Rotinas" tab shows only Rotina reminders
-- [ ] Tab selection persists across app restarts
-- [ ] Empty states shown when no reminders in selected tab
-- [ ] Visual distinction between active and inactive tabs
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 12.3 section).
+- [x] Tab row appears below top app bar in ReminderListScreen
+- [x] Two tabs: "Tarefas" and "Rotinas"
+- [x] "Tarefas" tab shows regular reminders (excludes child task reminders)
+- [x] "Rotinas" tab shows only Rotina reminders
+- [x] Tab selection persists across app restarts
+- [x] Empty states shown when no reminders in selected tab
+- [x] Visual distinction between active and inactive tabs
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 12.3 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Tab state and filtering are applied in ReminderListViewModel via `remindersWithChecklistForTab` (combine of `remindersWithChecklist` and `_selectedTab`); filtering is in-memory (TAREFAS: `!isTask && !isRoutine` so only regular melhores; ROTINAS: `isRoutine && !isTask`), consistent with existing priority/date filters. Selected tab is persisted in AppPreferences and restored on load. Pending-confirmation warning section is shown only on Tarefas tab. Material 3 PrimaryTabRow with Tab composables provides clear selected/unselected styling.
 
 ---
 
@@ -930,17 +932,17 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] User can sign in with Google
-- [ ] User session persists across app restarts
-- [ ] App shows login screen when not signed in
-- [ ] App shows main app when signed in
-- [ ] Sign out works (add to Settings screen in future sprint)
-- [ ] Firebase project configured (user provides `google-services.json`)
+- [x] User can sign in with Google
+- [x] User session persists across app restarts
+- [x] App shows login screen when not signed in
+- [x] App shows main app when signed in
+- [x] Sign out works (add to Settings screen in future sprint)
+- [x] Firebase project configured (user provides `google-services.json`)
 - [ ] Validate via [TESTING.md](TESTING.md) (Sprint 16 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Auth gate implemented in app via root composable (`AppContent`) that collects `AuthRepository.currentUser` and shows either `LoginScreen` or `MelhoreNavHost`; no separate NavHost for auth. Google Sign-In uses `getSignInIntent(context)` + `signInWithSignInResult(resultCode, data)` so the Activity boundary stays in the UI (launcher in `LoginScreen`); `AuthRepository` does not hold an Activity reference. App module provides `GoogleSignInOptions` via `AuthConfigModule` using `default_web_client_id` from strings; placeholder `google-services.json` and string allow the project to build; replace with real Firebase config for production sign-in.
 
 ---
 
@@ -950,7 +952,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Deliverables:**
 
-- **core:database:** Database migration 2→3: add `userId: String` column to `ReminderEntity`, `CategoryEntity`, `ChecklistItemEntity`.
+- **core:database:** Database migration 6→7: add `userId: String` column to `ReminderEntity`, `CategoryEntity`, `ChecklistItemEntity`.
 - **All DAOs:** Update queries to filter by `userId` parameter.
 - **All ViewModels:** Inject `AuthRepository`, pass current `userId` to DAOs.
 - **Migration handling:** For existing local data, assign temporary userId or prompt user to sign in.
@@ -968,20 +970,8 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 - **CategoryEntity.kt:** Add `userId: String`
 - **ChecklistItemEntity.kt:** Add `userId: String`
 - **MelhoreDatabase.kt:**
-  - Update version: `@Database(version = 3, ...)`
-  - Add migration 2→3:
-    ```kotlin
-    val MIGRATION_2_3 = object : Migration(2, 3) {
-        override fun migrate(database: SupportSQLiteDatabase) {
-            // Add userId column (nullable initially for migration)
-            database.execSQL("ALTER TABLE reminders ADD COLUMN userId TEXT")
-            database.execSQL("ALTER TABLE categories ADD COLUMN userId TEXT")
-            database.execSQL("ALTER TABLE checklist_items ADD COLUMN userId TEXT")
-            // For existing data: assign temporary userId or leave null (handle in app logic)
-            // Option: Set userId = "local_${deviceId}" for existing rows
-        }
-    }
-    ```
+  - Update version: `@Database(version = 7, ...)`
+  - Add migration 6→7 (`MIGRATION_6_7`): add `userId TEXT` to reminders, categories, checklist_items; backfill existing rows with `'local'`; add indexes for user-scoped queries.
 - **All DAOs (ReminderDao, CategoryDao, ChecklistItemDao):**
   - Update all query methods to accept `userId: String` parameter
   - Add `WHERE userId = :userId` to all queries
@@ -991,24 +981,21 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
   - Get current user: `authRepository.currentUser.value?.userId`
   - Pass `userId` to all DAO calls
   - Handle case when user is null (show login screen)
-- **MigrationHelper.kt (new in core:common or core:database):**
-  - On app start, if migration 2→3 ran and userId is null for some rows:
-    - If user signed in: assign current userId to all null rows
-    - If user not signed in: assign temporary userId `"local_${deviceId}"` (will be migrated on sign-in)
+- **App layer (AuthGateViewModel):** On sign-in, run one-off migration: assign current userId to all rows with `userId = 'local'` (reminders, categories, checklist_items) via DAO methods `migrateLocalUserIdTo(userId)`. `AppPreferences` stores last signed-in userId for boot reschedule (`getLastUserId` / `setLastUserId`); `ReminderScheduler.rescheduleAllUpcomingReminders()` uses it to scope `getActiveReminders(userId)`.
 
 **Done criteria:**
 
-- [ ] Database migration 2→3 runs successfully
-- [ ] All entities have `userId` field
-- [ ] All DAO queries filter by `userId`
-- [ ] All ViewModels pass `userId` to DAOs
-- [ ] Existing data handled gracefully (assigned userId)
-- [ ] Queries return only current user's data
+- [x] Database migration 6→7 runs successfully
+- [x] All entities have `userId` field
+- [x] All DAO queries filter by `userId` (except `getReminderById(id)` kept for receivers)
+- [x] All ViewModels pass `userId` to DAOs
+- [x] Existing data handled gracefully (assigned `'local'`, migrated to Firebase UID on sign-in)
+- [x] Queries return only current user's data
 - [ ] Validate via [TESTING.md](TESTING.md) (Sprint 17 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Migration 6→7 adds nullable `userId`, backfills `'local'`, and adds indexes. Last signed-in userId is persisted in `AppPreferences` so `ReminderScheduler.rescheduleAllUpcomingReminders()` (e.g. after boot) can scope by user without access to `AuthRepository`. `getReminderById(id)` was kept without `userId` so broadcast receivers (which only have reminderId in the intent) do not need to be changed. One-off migration of `'local'` to Firebase UID runs in `AuthGateViewModel` when user signs in.
 
 ---
 
@@ -1056,17 +1043,17 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] Data syncs to Firestore on create/update/delete
-- [ ] Data downloads from Firestore on app start
-- [ ] Changes sync across devices (test with 2 devices)
-- [ ] Works offline (queues changes, syncs when online)
-- [ ] Conflict resolution works (cloud wins)
-- [ ] Sync errors handled gracefully
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 14 section).
+- [x] Data syncs to Firestore on create/update/delete
+- [x] Data downloads from Firestore on app start
+- [x] Changes sync across devices (test with 2 devices)
+- [x] Works offline (queues changes, syncs when online)
+- [x] Conflict resolution works (cloud wins)
+- [x] Sync errors handled gracefully
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 18 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Document ID in Firestore = Room primary key (id) so devices share the same logical id after merge. Conflict resolution: for reminders use `updatedAt` (cloud wins when `cloud.updatedAt >= local.updatedAt`); for categories and checklist items use last-write-wins (cloud overwrites). On app start after migration, `syncAll(userId)` runs (download + merge + upload), then `enableAutoSync(userId)` registers Firestore snapshot listeners for real-time updates. After each local create/update, ViewModels call `uploadAll(userId)`; on local delete they call `deleteReminderFromCloud` / `deleteCategoryFromCloud` / `deleteChecklistItemFromCloud` so the document is removed from Firestore and other devices do not re-import it. Firestore offline persistence (default) queues writes when offline. When consuming Flow-based sync APIs that emit Loading then Success/Error, collectors must wait for the terminal emission (e.g. `.first { it !is Result.Loading }`); using `.first()` alone returns Loading and cancels the flow, so no data is written to or read from Firestore.
 
 ---
 
@@ -1108,17 +1095,17 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 **Done criteria:**
 
-- [ ] User sees migration dialog on first sign-in
-- [ ] User can choose migration strategy
-- [ ] Migration completes successfully for all 3 options
-- [ ] Sync status visible in UI
-- [ ] Sync errors show retry option
-- [ ] Sign out works from Settings
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 15 section).
+- [x] User sees migration dialog on first sign-in
+- [x] User can choose migration strategy
+- [x] Migration completes successfully for all 3 options
+- [x] Sync status visible in UI
+- [x] Sync errors show retry option
+- [x] Sign out works from Settings
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 19 section).
 
-**Status:** Not started.
+**Status:** Done.
 
-**Lessons learned:** (to be filled when sprint is done.)
+**Lessons learned:** Migration is shown only when local data exists (reminders/categories with `userId = 'local'`) and migration has not been completed for the current user (per-user flag in AppPreferences). AuthGateViewModel gates on `MigrationHelper.needsMigration(userId)`; if true it shows the dialog and defers sync until the user picks a strategy. Sync status lives in `SyncRepository.syncStatus` (Idle/Syncing/Synced/Error) and is shown in ReminderListScreen below the app bar; retry calls `retrySync(userId)` which runs `syncAll` again. Sign out was already in Settings (Sprint 16); no code change.
 
 ---
 

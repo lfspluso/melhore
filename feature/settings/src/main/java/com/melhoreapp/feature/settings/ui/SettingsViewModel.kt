@@ -3,11 +3,13 @@ package com.melhoreapp.feature.settings.ui
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.melhoreapp.core.auth.AuthRepository
 import com.melhoreapp.core.common.preferences.AppPreferences
 import com.melhoreapp.core.database.dao.ReminderDao
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ReminderScheduler
+import com.melhoreapp.core.sync.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +33,10 @@ val SNOOZE_OPTIONS: List<SnoozeOption> = listOf(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val authRepository: AuthRepository,
     private val reminderDao: ReminderDao,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val appPreferences = AppPreferences(context)
@@ -79,15 +83,23 @@ class SettingsViewModel @Inject constructor(
         // When enabled, all existing COMPLETED reminders should be deleted
         if (enabled) {
             viewModelScope.launch {
-                val allReminders = reminderDao.getAllReminders().first()
+                val uid = authRepository.currentUser.value?.userId ?: "local"
+                val allReminders = reminderDao.getAllReminders(uid).first()
                 val toDelete = allReminders.filter {
                     it.status == ReminderStatus.COMPLETED
                 }
                 toDelete.forEach { reminder ->
                     reminderScheduler.cancelReminder(reminder.id)
                     reminderDao.deleteById(reminder.id)
+                    syncRepository.deleteReminderFromCloud(uid, reminder.id)
                 }
             }
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            authRepository.signOut().collect { }
         }
     }
 }

@@ -260,7 +260,7 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ## Sprint 11.5 – Next Notification Date Display & Auto-Delete Setting
 
-**Goal:** Display next notification date for each Melhore (or "MELHORADO" for completed non-recurring reminders) and add setting to auto-delete completed non-recurring reminders.
+**Goal:** Display next notification date for each Melhore (or "MELHORADO" for completed non-recurring reminders) and add setting to auto-delete completed non-recurring reminders. *Note: The auto-delete behaviour is implemented as the "Excluir automaticamente lembretes concluídos" (delete after completion) setting; Sprint 13 reworked it to apply to COMPLETED reminders only.*
 
 | Step | Action | Expected behaviour |
 |------|--------|--------------------|
@@ -408,6 +408,43 @@ This document describes how to test and validate each sprint (or step) of the ap
 
 ---
 
+## Sprint 16 – Authentication Foundation (Google Sign-In)
+
+**Goal:** Google Sign-In authentication and user session management; app shows login when not signed in, main app when signed in; sign out from Settings.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Build and install the app (with valid or placeholder `google-services.json` in `app/`). | Build succeeds. App launches. |
+| 2 | Launch the app when **not** signed in (fresh install or after sign out). | **Login screen** is shown with title "Melhore", subtitle text, and **"Entrar com Google"** button. No bottom navigation or reminder list. |
+| 3 | Tap **"Entrar com Google"**. | Google Sign-In flow starts (account picker or browser). If `default_web_client_id` / Firebase are not configured, an error may appear; use real Firebase config for full flow. |
+| 4 | Complete Google Sign-In successfully (with valid Firebase project and Web client ID). | After sign-in, app shows **main app** (Reminders list with bottom nav: Melhores, Tags, Integrações, Configurações). Login screen is no longer visible. |
+| 5 | Force stop the app and launch again (still signed in). | App opens directly on **main app** (no login screen). User session persisted. |
+| 6 | Open **Configurações** (Settings) tab. Scroll to **"Conta"** section. | Section shows **"Sair"** button. |
+| 7 | Tap **"Sair"**. | App returns to **login screen** (no main app). Sign out succeeded; auth gate reacted to `currentUser` becoming null. |
+| 8 | Sign in again. | Main app is shown again. |
+| 9 | (Optional) On login screen, trigger a sign-in error (e.g. cancel account picker or use invalid config). | Error message is shown (e.g. "Erro ao entrar" or exception message). **"Tentar novamente"** button allows retry. |
+
+**Validation:** Login screen when not signed in; Google Sign-In leads to main app; session persists across app restarts; Sign out in Settings returns to login screen; errors on login are shown and retry is possible. Replace placeholder `google-services.json` and `default_web_client_id` in `app/src/main/res/values/strings.xml` with values from Firebase Console for real sign-in.
+
+---
+
+## Sprint 17 – Database Migration & User Scoping
+
+**Goal:** All reminder, category, and checklist data is scoped by user; migration 6→7 adds `userId`; existing data receives `'local'` and is migrated to signed-in user on sign-in; boot reschedule uses last signed-in userId.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Build and install the app. | Build succeeds. App launches. |
+| 2 | Sign in with Google. Create a reminder and a tag. | Reminder and tag are saved and appear in the list. |
+| 3 | Open Reminders list and Tags list. | Only the current user's reminders and tags are shown. |
+| 4 | (Optional) Sign out and sign in with a different account (or same). | After sign-in, list shows data for the signed-in user. Pre-sign-in datasa created with `'local'` is migrated to the signed-in user on first sign-in. |
+| 5 | Create a reminder, force stop the app, reboot the device (with app still installed). | After reboot, open the app and sign in. Reminders are rescheduled (boot uses lastUserId from AppPreferences). |
+| 6 | (Optional) Install an older build (pre–Sprint 17), create reminders/tags, then install Sprint 17 build and open app. | Migration 6→7 runs; existing rows get `userId = 'local'`. After sign-in, data is migrated to current user and appears in the list. |
+
+**Validation:** Database migration 6→7 runs without error; all entities have `userId`; DAO queries return only current user's data; existing data is backfilled with `'local'` and migrated to signed-in user on sign-in; boot reschedule uses last signed-in userId; no regressions in reminder list, tags, add/edit, settings, or notifications.
+
+---
+
 ## Quick reference: what to check after each step
 
 - **Sprint 0:** Build + launch → Reminders screen with clear structure (no “all white” with no content).
@@ -431,13 +468,115 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 14:** New snooze options ("15 minutos", "1 hora", "Personalizar"); "Fazendo" follow-up with completion check.
 - **Sprint 15:** Snooze options settings; customize which options appear in notifications.
 - **Sprint 15.5:** Warning section for pending confirmation tasks appears above all other tasks.
-- **Sprint 16:** (Future) Authentication foundation.
-- **Sprint 17:** (Future) Database migration & user scoping.
-- **Sprint 18:** (Future) Cloud sync implementation.
-- **Sprint 19:** (Future) Data migration & sync polish.
+- **Sprint 16:** Google Sign-In; login screen when not signed in; main app when signed in; session persistence; Sign out in Settings.
+- **Sprint 17:** Database migration 6→7; user-scoped entities and DAOs; lastUserId for boot reschedule; local data migrated on sign-in.
+- **Sprint 18:** Cloud sync implementation (see section below).
+- **Sprint 19:** Data migration & sync polish (see section below).
 - **Sprint 20:** (Future) Documentation and release prep.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.
+
+---
+
+## Sprint 18 – Cloud sync implementation
+
+**Goal:** Sync reminder, category, and checklist data to/from Firebase Firestore; cloud wins on conflict; offline support.
+
+### Data syncs to Firestore on create/update/delete
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Sign in with Google. Create a new reminder (title, date/time), save. | Reminder is saved locally and appears in the list. |
+| 2 | Open Firebase Console → Firestore Database → `users/{your-uid}/reminders`. | A document with the reminder id exists; fields (title, dueAt, type, etc.) match. |
+| 3 | Create a tag (category), save. | Tag appears in Tags list. |
+| 4 | In Firestore, check `users/{your-uid}/categories`. | A document for the new category exists. |
+| 5 | Edit the reminder (e.g. change title), save. | Reminder updates locally. |
+| 6 | In Firestore, refresh `users/{your-uid}/reminders`. | The reminder document reflects the new title. |
+| 7 | Delete the reminder from the app (or mark complete and delete if enabled). | Reminder is removed from the list. |
+| 8 | In Firestore, refresh. | The reminder document is deleted (or no longer present). |
+
+### Data downloads from Firestore on app start
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | From another device or Firebase Console, add or edit a reminder/category under `users/{your-uid}/...`. | Data is in Firestore. |
+| 2 | On the first device, force-stop the app and reopen (or sign out and sign back in). | App runs `syncAll` on start. |
+| 3 | Open Reminders or Tags list. | The data added/edited on the other source appears locally (cloud wins on merge). |
+
+### Cross-device sync
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Sign in with the same Google account on two devices (or emulator + device). | Both show the main app. |
+| 2 | On device A: create a reminder, save. | Reminder appears on device A. |
+| 3 | On device B: open or refresh the reminder list (or restart app). | The new reminder appears on device B (syncAll on start or real-time listener). |
+| 4 | On device B: edit the reminder, save. | Reminder updates on device B. |
+| 5 | On device A: open or refresh the list. | The updated reminder is shown (cloud wins). |
+
+### Offline support
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Turn off network (airplane mode or no Wi-Fi). | App remains usable. |
+| 2 | Create or edit a reminder, save. | Save succeeds locally; UI updates. |
+| 3 | Turn network back on. | Firestore persistence queues writes; data syncs to cloud. |
+| 4 | In Firestore Console (or on another device), verify. | The reminder/category appears or is updated. |
+
+### Conflict resolution (cloud wins)
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | On device A: edit a reminder (e.g. title = "A"). On device B: edit the same reminder (title = "B") and save. | Both devices have different local state. |
+| 2 | On device A: reopen app or trigger sync (e.g. pull or restart). | `syncAll` downloads from Firestore; merge uses cloud version (e.g. title = "B" if B uploaded after A). |
+| 3 | Verify reminder title on device A. | Shows the cloud version (e.g. "B"). |
+
+### Sync errors handled gracefully
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | With invalid credentials or no network, perform an action that triggers sync (e.g. create reminder and save). | App does not crash; reminder is saved locally. Sync may fail in background; errors can be logged. |
+| 2 | Restore network / sign in again and reopen app. | `syncAll` on start can retry; data eventually syncs. |
+
+**Validation:** All tables above pass for the implemented behaviour. Optional: add sync status UI (Sprint 19) and retry on error.
+
+---
+
+## Sprint 19 – Data migration & sync polish
+
+**Goal:** First-time sign-in migration dialog (upload / merge / start fresh), sync status in UI, retry on sync error.
+
+### Migration dialog on first sign-in with local data
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Without signing in, create one or more reminders (or tags) so local data exists (`userId = 'local'`). | Data is stored locally. |
+| 2 | Sign in with Google. | Migration dialog appears with title "Dados neste aparelho" and three options: "Fazer upload para esta conta", "Mesclar com dados da nuvem", "Começar do zero". |
+| 3 | Choose "Fazer upload para esta conta". | Dialog shows "Sincronizando…"; then dialog closes and main app (reminder list) is shown. Local data is now in the cloud (check Firestore). |
+| 4 | Sign out, add local data again (or use another device/account), sign in. Choose "Mesclar com dados da nuvem". | Dialog closes after sync; list shows merged data (cloud wins on conflict). |
+| 5 | With local data, sign in and choose "Começar do zero". | Local data is cleared; list shows only what is in the cloud (or empty). |
+
+### No migration dialog when no local data or already migrated
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Fresh install, sign in (no reminders/tags created before sign-in). | No migration dialog; normal sync runs and main app is shown. |
+| 2 | After completing migration once for an account, sign out and sign back in. | No migration dialog; sync runs as usual. |
+
+### Sync status and retry
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Sign in and open the Reminder list (Tarefas or Rotinas). | A sync status row appears below the app bar: "Sincronizando…" then "Sincronizado" (or stays Idle if no sync has run). |
+| 2 | Simulate sync error (e.g. turn off network, trigger sync; or rely on existing error handling). | Status shows "Erro de sincronização" with "Tentar novamente" button. |
+| 3 | Tap "Tentar novamente" (with network restored if needed). | Sync runs again; status moves to Syncing then Synced (or Error if it fails again). |
+
+### Sign out (regression)
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Open Settings, tap "Sair". | User is signed out; login screen is shown. Session does not persist. |
+
+**Validation:** All tables above pass for the implemented behaviour.
 
 ---
 
@@ -525,6 +664,57 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 | 4 | Tap "Pular dia" and confirm skip. | Rotina advances to next occurrence; screen navigates back to **Melhore home page**. |
 
 **Validation:** Tasks can only be created within current period boundaries; time picker restricts selection appropriately; visual indicator shows current period; validation prevents saving tasks outside period; navigation returns to Melhore home page after save; back stack is properly cleared.
+
+**Note:** Period restriction and validation apply to all recurrence types: daily, weekly, biweekly, monthly, and custom (custom uses current week as the period). The date picker disables dates outside the period; the time picker clamps the selected time to period bounds when on boundary dates.
+
+---
+
+## Sprint 12.3 – UI Tabs: Separate Tarefas and Rotinas
+
+**Goal:** Melhores screen has two tabs (Tarefas and Rotinas) below the top app bar; tab selection persists; empty states are tab-specific.
+
+### Tab row and switching
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Open the app and go to the Melhores (reminders) screen. | A tab row appears **below the top app bar** with two tabs: **"Tarefas"** and **"Rotinas"**. |
+| 2 | Observe the default tab. | **Tarefas** is selected by default (clear visual distinction: selected tab is highlighted, unselected is not). |
+| 3 | Tap the **Rotinas** tab. | Rotinas tab becomes selected; list shows only Rotina reminders (reminders marked as Rotina, excluding child task reminders). |
+| 4 | Tap the **Tarefas** tab. | Tarefas tab becomes selected; list shows regular reminders (excluding child task reminders). |
+
+### Tab content filtering
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Ensure you have at least one regular reminder (not a Rotina, not a task) and optionally a Rotina and/or task reminders. | Data is set up. |
+| 2 | Select **Tarefas** tab. | List shows only **regular** reminders (non-task, non-Rotina): one-time and recurring melhores that are not Rotinas. Child task reminders and Rotinas do **not** appear. |
+| 3 | Select **Rotinas** tab. | List shows only reminders that are **Rotina** (isRoutine) and **not** task reminders. Regular melhores do not appear. |
+
+### Tab persistence
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Select **Rotinas** tab. | Rotinas is selected. |
+| 2 | Leave the app (e.g. home button or switch app) and reopen the app (or kill and relaunch). | App reopens on Melhores screen with **Rotinas** tab still selected. |
+| 3 | Select **Tarefas**, then leave and reopen again. | **Tarefas** tab is selected after reopen. |
+
+### Empty states
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | On **Tarefas** tab, ensure no reminders (and no active filters). | Empty state shows: "Nenhum melhore ainda" and "Toque em + para adicionar um melhore". |
+| 2 | Switch to **Rotinas** tab with no Rotina reminders. | Empty state shows: "Nenhuma rotina ainda" and "Crie um melhore e marque como Rotina para ver aqui". |
+| 3 | With active filters applied, ensure no reminders match. | Empty state shows "Nenhum melhore com esses filtros" and "Limpar filtros" (same for both tabs when filters are active). |
+
+### Pending confirmation section
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Have at least one reminder in "pending confirmation" state (ACTIVE, past due, one-time, not snoozed). | Warning section appears when on **Tarefas** tab. |
+| 2 | Switch to **Rotinas** tab. | Pending confirmation warning section is **not** shown on Rotinas tab. |
+| 3 | Switch back to Tarefas. | Warning section appears again if pending reminders exist. |
+
+**Validation:** Tab row is visible and has two tabs with clear selected/unselected styling; Tarefas shows only regular reminders (excludes child tasks and Rotinas); Rotinas shows only Rotina (non-task) reminders; selected tab persists across app restarts; empty states show correct copy per tab; pending confirmation section appears only on Tarefas tab.
 
 ---
 

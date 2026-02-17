@@ -15,6 +15,9 @@ private const val KEY_AUTO_DELETE_COMPLETED_REMINDERS = "auto_delete_completed_r
 private const val KEY_SHOW_COMPLETED_REMINDERS = "show_completed_reminders"
 private const val KEY_SHOW_CANCELLED_REMINDERS = "show_cancelled_reminders"
 private const val KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"
+private const val KEY_SELECTED_REMINDER_TAB = "selected_reminder_tab"
+private const val KEY_LAST_USER_ID = "last_user_id"
+private const val KEY_MIGRATION_COMPLETED_USER_IDS = "migration_completed_user_ids"
 
 /** Sentinel for "no date filter" (SharedPreferences cannot store null). */
 private const val DATE_FILTER_NOT_SET = 0L
@@ -147,5 +150,40 @@ class AppPreferences(context: Context) {
 
     private fun getDefaultEnabledSnoozeOptions(): Set<String> {
         return setOf("5_min", "15_min", "1_hour")
+    }
+
+    // Selected reminder list tab: Tarefas vs Rotinas (Sprint 12.3)
+    // Stored as enum name; caller maps null to TAREFAS.
+
+    fun getSelectedReminderTab(): String? =
+        prefs.getString(KEY_SELECTED_REMINDER_TAB, null)?.takeIf { it.isNotBlank() }
+
+    fun setSelectedReminderTab(value: String) {
+        prefs.edit().putString(KEY_SELECTED_REMINDER_TAB, value).apply()
+    }
+
+    // Last signed-in userId for boot reschedule (Sprint 17)
+    fun getLastUserId(): String? =
+        prefs.getString(KEY_LAST_USER_ID, null)?.takeIf { it.isNotBlank() }
+
+    fun setLastUserId(userId: String?) {
+        prefs.edit().putString(KEY_LAST_USER_ID, userId ?: "").apply()
+    }
+
+    // Migration completed per user (Sprint 19) – first-time sign-in migration dialog only once per account
+    fun getMigrationCompletedForUser(userId: String): Boolean {
+        val raw = prefs.getString(KEY_MIGRATION_COMPLETED_USER_IDS, null) ?: return false
+        if (raw.isBlank()) return false
+        return userId in raw.split(",").map { it.trim() }.toSet()
+    }
+
+    fun setMigrationCompletedForUser(userId: String, completed: Boolean) {
+        val current = prefs.getString(KEY_MIGRATION_COMPLETED_USER_IDS, null)
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.toMutableSet() ?: mutableSetOf()
+        if (completed) current.add(userId) else current.remove(userId)
+        prefs.edit().putString(KEY_MIGRATION_COMPLETED_USER_IDS, current.joinToString(",")).apply()
     }
 }

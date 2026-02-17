@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -43,16 +44,20 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:auth"))
     implementation(project(":core:database"))
     implementation(project(":core:notifications"))
     implementation(project(":core:scheduling"))
+    implementation(project(":core:sync"))
     implementation(project(":feature:reminders"))
+    implementation(project(":feature:auth"))
     implementation(project(":feature:categories"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:integrations"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -64,6 +69,10 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.hilt.work)
     implementation(libs.work.runtime.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.play.services.auth)
     kapt(libs.hilt.compiler)
     kapt(libs.hilt.compiler.androidx)
     debugImplementation(libs.androidx.ui.tooling)

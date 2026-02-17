@@ -3,6 +3,7 @@ package com.melhoreapp.feature.reminders.ui.list
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.melhoreapp.core.auth.AuthRepository
 import com.melhoreapp.core.common.preferences.AppPreferences
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
@@ -12,6 +13,8 @@ import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ReminderScheduler
+import com.melhoreapp.core.sync.SyncRepository
+import com.melhoreapp.core.sync.SyncStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -41,13 +46,23 @@ data class ReminderSection(
 @HiltViewModel
 class ReminderListViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val authRepository: AuthRepository,
     private val reminderDao: ReminderDao,
     private val categoryDao: CategoryDao,
     private val checklistItemDao: ChecklistItemDao,
-    private val reminderScheduler: ReminderScheduler
+    private val reminderScheduler: ReminderScheduler,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     private val appPreferences = AppPreferences(context)
+
+    private val userIdFlow: StateFlow<String> = authRepository.currentUser
+        .map { it?.userId ?: "local" }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = "local"
+        )
 
     private val _filter = MutableStateFlow(loadInitialFilter())
     val filter: StateFlow<ReminderListFilter> = _filter.asStateFlow()
@@ -64,18 +79,27 @@ class ReminderListViewModel @Inject constructor(
     private val _completionConfirmationReminderId = MutableStateFlow<Long?>(null)
     val completionConfirmationReminderId: StateFlow<Long?> = _completionConfirmationReminderId.asStateFlow()
 
-    val categories: StateFlow<List<CategoryEntity>> = categoryDao.getAllCategories()
+    /** Sync status for UI (Sprint 19). */
+    val syncStatus: StateFlow<SyncStatus> = syncRepository.syncStatus
+
+    private val _selectedTab = MutableStateFlow(loadInitialTab())
+    val selectedTab: StateFlow<ReminderTab> = _selectedTab.asStateFlow()
+
+    val categories: StateFlow<List<CategoryEntity>> = userIdFlow
+        .flatMapLatest { uid -> categoryDao.getAllCategories(uid) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
 
-    private val remindersFlow = _filter.flatMapLatest { f ->
-        if (f.categoryIds.isEmpty()) {
-            reminderDao.getAllReminders()
-        } else {
-            reminderDao.getRemindersByCategoryIds(f.categoryIds.toList())
+    private val remindersFlow = userIdFlow.flatMapLatest { uid ->
+        _filter.flatMapLatest { f ->
+            if (f.categoryIds.isEmpty()) {
+                reminderDao.getAllReminders(uid)
+            } else {
+                reminderDao.getRemindersByCategoryIds(uid, f.categoryIds.toList())
+            }
         }
     }.combine(_filter) { list, f ->
         var result = list
@@ -110,7 +134,7 @@ class ReminderListViewModel @Inject constructor(
 
     val remindersWithChecklist: StateFlow<List<ReminderWithChecklist>> = combine(
         remindersFlow,
-        checklistItemDao.getAllItems()
+        userIdFlow.flatMapLatest { uid -> checklistItemDao.getAllItems(uid) }
     ) { reminders, allItems ->
         reminders.map { reminder ->
             val items = allItems.filter { it.reminderId == reminder.id }
@@ -143,13 +167,29 @@ class ReminderListViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    // Filtered list excluding pending confirmation reminders (they appear only in warning section)
-    val filteredRemindersWithChecklist: StateFlow<List<ReminderWithChecklist>> = combine(
+    // Tab-filtered list: TAREFAS = non-task reminders, ROTINAS = routine (non-task) reminders (Sprint 12.3)
+    private val remindersWithChecklistForTab: StateFlow<List<ReminderWithChecklist>> = combine(
         remindersWithChecklist,
-        pendingConfirmationReminders
-    ) { allReminders, pendingReminders ->
+        _selectedTab
+    ) { list, tab ->
+        when (tab) {
+            ReminderTab.TAREFAS -> list.filter { !it.reminder.isTask && !it.reminder.isRoutine }
+            ReminderTab.ROTINAS -> list.filter { it.reminder.isRoutine && !it.reminder.isTask }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList()
+    )
+
+    // Filtered list excluding pending confirmation reminders on Tarefas (they appear only in warning section)
+    val filteredRemindersWithChecklist: StateFlow<List<ReminderWithChecklist>> = combine(
+        remindersWithChecklistForTab,
+        pendingConfirmationReminders,
+        _selectedTab
+    ) { tabList, pendingReminders, tab ->
         val pendingIds = pendingReminders.map { it.reminder.id }.toSet()
-        allReminders.filter { it.reminder.id !in pendingIds }
+        if (tab == ReminderTab.ROTINAS) tabList else tabList.filter { it.reminder.id !in pendingIds }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -203,6 +243,15 @@ class ReminderListViewModel @Inject constructor(
             SortOrder.entries.find { it.name == name } ?: SortOrder.DUE_DATE_ASC
         } else {
             SortOrder.DUE_DATE_ASC
+        }
+    }
+
+    private fun loadInitialTab(): ReminderTab {
+        val name = appPreferences.getSelectedReminderTab()
+        return if (name != null) {
+            ReminderTab.entries.find { it.name == name } ?: ReminderTab.TAREFAS
+        } else {
+            ReminderTab.TAREFAS
         }
     }
 
@@ -270,10 +319,17 @@ class ReminderListViewModel @Inject constructor(
         appPreferences.setShowAdvancedFilters(show)
     }
 
+    fun setSelectedTab(tab: ReminderTab) {
+        _selectedTab.value = tab
+        appPreferences.setSelectedReminderTab(tab.name)
+    }
+
     fun deleteReminder(id: Long) {
         viewModelScope.launch {
+            val uid = userIdFlow.value
             reminderScheduler.cancelReminder(id)
             reminderDao.deleteById(id)
+            syncRepository.deleteReminderFromCloud(uid, id)
         }
     }
 
@@ -287,6 +343,7 @@ class ReminderListViewModel @Inject constructor(
 
     fun markAsCompleted(reminderId: Long) {
         viewModelScope.launch {
+            val uid = userIdFlow.value
             val reminder = reminderDao.getReminderById(reminderId) ?: return@launch
             val now = System.currentTimeMillis()
             
@@ -304,10 +361,21 @@ class ReminderListViewModel @Inject constructor(
             if (appPreferences.getDeleteAfterCompletion()) {
                 reminderScheduler.cancelReminder(reminderId)
                 reminderDao.deleteById(reminderId)
+                syncRepository.deleteReminderFromCloud(uid, reminderId)
+            } else {
+                syncRepository.uploadAllInBackground(uid)
             }
             
             // Dismiss confirmation dialog
             _completionConfirmationReminderId.value = null
+        }
+    }
+
+    /** Retry sync after error (Sprint 19). */
+    fun retrySync() {
+        viewModelScope.launch {
+            val uid = userIdFlow.value
+            if (uid != "local") syncRepository.retrySync(uid).collect { }
         }
     }
 }

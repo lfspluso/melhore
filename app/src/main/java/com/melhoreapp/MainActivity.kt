@@ -17,7 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import com.melhoreapp.ui.navigation.MelhoreNavHost
+import com.melhoreapp.ui.AppContent
 import com.melhoreapp.ui.theme.MelhoreAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -29,12 +29,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             MelhoreAppTheme {
                 NotificationPermissionHandler()
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MelhoreNavHost(initialRoute = intent.getStringExtra("navigation_route"))
-                }
+                AppContent(initialRoute = intent.getStringExtra("navigation_route"))
             }
         }
     }

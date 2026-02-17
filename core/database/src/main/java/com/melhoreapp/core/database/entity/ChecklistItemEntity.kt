@@ -20,6 +20,7 @@ import androidx.room.PrimaryKey
 data class ChecklistItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: String? = "local", // Nullable in DB (migration 6→7); treat null as "local"
     val reminderId: Long,
     val label: String,
     val sortOrder: Int = 0,

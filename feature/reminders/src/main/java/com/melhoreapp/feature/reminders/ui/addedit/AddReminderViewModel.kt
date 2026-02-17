@@ -3,6 +3,7 @@ package com.melhoreapp.feature.reminders.ui.addedit
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.melhoreapp.core.auth.AuthRepository
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.dao.ChecklistItemDao
 import com.melhoreapp.core.database.dao.ReminderDao
@@ -14,13 +15,17 @@ import com.melhoreapp.core.database.entity.ReminderEntity
 import com.melhoreapp.core.database.entity.ReminderStatus
 import com.melhoreapp.core.scheduling.ExactAlarmPermissionRequiredException
 import com.melhoreapp.core.scheduling.ReminderScheduler
+import com.melhoreapp.core.sync.SyncRepository
 import com.melhoreapp.core.database.entity.CategoryEntity
 import java.time.DayOfWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,12 +38,15 @@ data class ChecklistItemUi(
     val checked: Boolean
 )
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AddReminderViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
     private val reminderDao: ReminderDao,
     private val categoryDao: CategoryDao,
     private val checklistItemDao: ChecklistItemDao,
     private val reminderScheduler: ReminderScheduler,
+    private val syncRepository: SyncRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -76,7 +84,12 @@ class AddReminderViewModel @Inject constructor(
     private val _showCancellationConfirmation = MutableStateFlow(false)
     val showCancellationConfirmation: StateFlow<Boolean> = _showCancellationConfirmation.asStateFlow()
 
-    val categories: StateFlow<List<CategoryEntity>> = categoryDao.getAllCategories()
+    private suspend fun currentUserId(): String =
+        authRepository.currentUser.value?.userId ?: "local"
+
+    val categories: StateFlow<List<CategoryEntity>> = authRepository.currentUser
+        .map { it?.userId ?: "local" }
+        .flatMapLatest { uid -> categoryDao.getAllCategories(uid) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -95,7 +108,8 @@ class AddReminderViewModel @Inject constructor(
                     _isRoutine.value = reminder.isRoutine
                     _customRecurrenceDays.value = RecurrenceDaysConverter.deserializeDays(reminder.customRecurrenceDays)
                 }
-                checklistItemDao.getItemsByReminderIdOnce(id).let { items ->
+                val uid = currentUserId()
+                checklistItemDao.getItemsByReminderIdOnce(uid, id).let { items ->
                     _checklistItems.value = items.map { e ->
                         ChecklistItemUi(
                             id = e.id,
@@ -166,6 +180,7 @@ class AddReminderViewModel @Inject constructor(
         }
         val now = System.currentTimeMillis()
         val items = _checklistItems.value
+        val uid = currentUserId()
 
         return try {
             if (reminderId != null) {
@@ -187,11 +202,12 @@ class AddReminderViewModel @Inject constructor(
                     updatedAt = now
                 )
                 reminderDao.update(updated)
-                checklistItemDao.deleteByReminderId(reminderId)
+                checklistItemDao.deleteByReminderId(uid, reminderId)
                 if (items.isNotEmpty()) {
                     checklistItemDao.insertAll(
                         items.mapIndexed { index, ui ->
                             ChecklistItemEntity(
+                                userId = uid,
                                 reminderId = reminderId,
                                 label = ui.label,
                                 sortOrder = index,
@@ -201,6 +217,7 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(reminderId, _dueAt.value, t, existing.notes, isSnoozeFire = false)
+                syncRepository.uploadAllInBackground(uid)
             } else {
                 val customDaysString = if (_recurrenceType.value == RecurrenceType.CUSTOM) {
                     RecurrenceDaysConverter.serializeDays(_customRecurrenceDays.value)
@@ -208,6 +225,7 @@ class AddReminderViewModel @Inject constructor(
                     null
                 }
                 val entity = ReminderEntity(
+                    userId = uid,
                     title = t,
                     notes = "",
                     type = _recurrenceType.value,
@@ -227,6 +245,7 @@ class AddReminderViewModel @Inject constructor(
                     checklistItemDao.insertAll(
                         items.mapIndexed { index, ui ->
                             ChecklistItemEntity(
+                                userId = uid,
                                 reminderId = id,
                                 label = ui.label,
                                 sortOrder = index,
@@ -236,6 +255,7 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(id, _dueAt.value, t, entity.notes, isSnoozeFire = false)
+                syncRepository.uploadAllInBackground(uid)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -267,6 +287,7 @@ class AddReminderViewModel @Inject constructor(
             // Cancel any scheduled alarms
             reminderScheduler.cancelReminder(id)
             
+            syncRepository.uploadAllInBackground(currentUserId())
             _showCancellationConfirmation.value = false
             Result.success(Unit)
         } catch (e: Exception) {

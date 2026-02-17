@@ -56,6 +56,9 @@ fun RotinaTaskSetupScreen(
     val tasks by viewModel.tasks.collectAsState()
     val showSkipDayConfirmation by viewModel.showSkipDayConfirmation.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val periodValidationError by viewModel.periodValidationError.collectAsState()
+    val periodStart by viewModel.currentPeriodStart.collectAsState()
+    val periodEnd by viewModel.currentPeriodEnd.collectAsState()
     val scope = rememberCoroutineScope()
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
@@ -105,7 +108,28 @@ fun RotinaTaskSetupScreen(
                         ),
                         style = MaterialTheme.typography.bodyMedium
                     )
+                    periodStart?.let { start ->
+                        periodEnd?.let { end ->
+                            val zone = ZoneId.systemDefault()
+                            val startStr = dateFormatter.format(Instant.ofEpochMilli(start).atZone(zone))
+                            val endStr = dateFormatter.format(Instant.ofEpochMilli(end).atZone(zone))
+                            Text(
+                                text = "Tarefas para: $startStr – $endStr",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    periodValidationError?.let { error ->
+                        Text(
+                            text = error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
 
                     // Tasks list
                     Text(
@@ -130,32 +154,44 @@ fun RotinaTaskSetupScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     
-                    // Date picker dialogs
+                    // Date picker dialogs (restricted to current period)
                     showDatePickerForIndex?.let { index ->
                         val task = tasks.getOrNull(index)
                         task?.let {
                             TaskDatePickerDialog(
                                 initialMillis = it.startTime,
+                                minDateMillis = periodStart,
+                                maxDateMillis = periodEnd,
                                 onConfirm = { millis ->
-                                    viewModel.updateTask(index, it.copy(startTime = millis))
-                                    showDatePickerForIndex = null
+                                    if (viewModel.updateTask(index, it.copy(startTime = millis))) {
+                                        showDatePickerForIndex = null
+                                    }
                                 },
-                                onDismiss = { showDatePickerForIndex = null }
+                                onDismiss = {
+                                    viewModel.clearPeriodValidationError()
+                                    showDatePickerForIndex = null
+                                }
                             )
                         }
                     }
                     
-                    // Time picker dialogs
+                    // Time picker dialogs (restricted to current period when on boundary dates)
                     showTimePickerForIndex?.let { index ->
                         val task = tasks.getOrNull(index)
                         task?.let {
                             TaskTimePickerDialog(
                                 initialMillis = it.startTime,
+                                minMillis = periodStart,
+                                maxMillis = periodEnd,
                                 onConfirm = { millis ->
-                                    viewModel.updateTask(index, it.copy(startTime = millis))
-                                    showTimePickerForIndex = null
+                                    if (viewModel.updateTask(index, it.copy(startTime = millis))) {
+                                        showTimePickerForIndex = null
+                                    }
                                 },
-                                onDismiss = { showTimePickerForIndex = null }
+                                onDismiss = {
+                                    viewModel.clearPeriodValidationError()
+                                    showTimePickerForIndex = null
+                                }
                             )
                         }
                     }
@@ -203,10 +239,8 @@ fun RotinaTaskSetupScreen(
                                 scope.launch {
                                     try {
                                         val success = viewModel.saveTasks()
-                                        // Always navigate back after save attempt
-                                        onSaved()
+                                        if (success) onSaved()
                                     } catch (e: Exception) {
-                                        // Error saving - still allow navigation back
                                         onSaved()
                                     }
                                 }
@@ -330,6 +364,8 @@ private fun TaskInputRow(
 @Composable
 private fun TaskDatePickerDialog(
     initialMillis: Long,
+    minDateMillis: Long?,
+    maxDateMillis: Long?,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -339,8 +375,27 @@ private fun TaskDatePickerDialog(
         .atStartOfDay(ZoneOffset.UTC)
         .toInstant()
         .toEpochMilli()
+    val selectableDates = remember(minDateMillis, maxDateMillis) {
+        object : androidx.compose.material3.SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                if (minDateMillis == null && maxDateMillis == null) return true
+                val localDate = java.time.Instant.ofEpochMilli(utcTimeMillis)
+                    .atZone(zone).toLocalDate()
+                val minLocal = minDateMillis?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+                }
+                val maxLocal = maxDateMillis?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(zone).toLocalDate()
+                }
+                if (minLocal != null && localDate.isBefore(minLocal)) return false
+                if (maxLocal != null && localDate.isAfter(maxLocal)) return false
+                return true
+            }
+        }
+    }
     val datePickerState = androidx.compose.material3.rememberDatePickerState(
-        initialSelectedDateMillis = initialDateMillisForPicker
+        initialSelectedDateMillis = initialDateMillisForPicker,
+        selectableDates = selectableDates
     )
     androidx.compose.material3.DatePickerDialog(
         onDismissRequest = onDismiss,
@@ -349,7 +404,6 @@ private fun TaskDatePickerDialog(
                 onClick = {
                     datePickerState.selectedDateMillis?.let { dateMillis ->
                         val initial = Instant.ofEpochMilli(initialMillis).atZone(zone)
-                        // Material3 DatePicker returns UTC midnight for the selected day; use UTC to get calendar day
                         val pickedLocalDate = Instant.ofEpochMilli(dateMillis).atZone(ZoneOffset.UTC).toLocalDate()
                         val merged = pickedLocalDate.atTime(initial.toLocalTime()).atZone(zone)
                         onConfirm(merged.toInstant().toEpochMilli())
@@ -370,6 +424,8 @@ private fun TaskDatePickerDialog(
 @Composable
 private fun TaskTimePickerDialog(
     initialMillis: Long,
+    minMillis: Long?,
+    maxMillis: Long?,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -386,8 +442,11 @@ private fun TaskTimePickerDialog(
             Button(
                 onClick = {
                     val date = initial.toLocalDate()
-                    val merged = date.atTime(timePickerState.hour, timePickerState.minute).atZone(zone)
-                    onConfirm(merged.toInstant().toEpochMilli())
+                    var merged = date.atTime(timePickerState.hour, timePickerState.minute).atZone(zone).toInstant().toEpochMilli()
+                    if (minMillis != null && maxMillis != null) {
+                        merged = merged.coerceIn(minMillis, maxMillis)
+                    }
+                    onConfirm(merged)
                 }
             ) {
                 Text("OK")

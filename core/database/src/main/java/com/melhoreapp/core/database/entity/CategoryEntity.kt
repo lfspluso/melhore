@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class CategoryEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val userId: String? = "local", // Nullable in DB (migration 6→7); treat null as "local"
     val name: String,
     val colorArgb: Int? = null,
     val sortOrder: Int = 0

@@ -128,6 +128,22 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+private val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Add userId column (nullable for migration)
+        db.execSQL("ALTER TABLE reminders ADD COLUMN userId TEXT")
+        db.execSQL("ALTER TABLE categories ADD COLUMN userId TEXT")
+        db.execSQL("ALTER TABLE checklist_items ADD COLUMN userId TEXT")
+        // Backfill existing rows with default for pre-sign-in / local data
+        db.execSQL("UPDATE reminders SET userId = 'local' WHERE userId IS NULL")
+        db.execSQL("UPDATE categories SET userId = 'local' WHERE userId IS NULL")
+        db.execSQL("UPDATE checklist_items SET userId = 'local' WHERE userId IS NULL")
+        // Indexes for user-scoped queries (Sprint 17)
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_reminders_userId ON reminders(userId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_reminders_userId_status_dueAt ON reminders(userId, status, dueAt)")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -140,7 +156,7 @@ object DatabaseModule {
         context,
         MelhoreDatabase::class.java,
         "melhore_db"
-    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
 
     @Provides
     @Singleton

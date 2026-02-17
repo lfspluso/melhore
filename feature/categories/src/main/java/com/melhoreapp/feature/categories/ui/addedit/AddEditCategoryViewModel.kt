@@ -3,19 +3,24 @@ package com.melhoreapp.feature.categories.ui.addedit
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.melhoreapp.core.auth.AuthRepository
 import com.melhoreapp.core.database.dao.CategoryDao
 import com.melhoreapp.core.database.entity.CategoryEntity
+import com.melhoreapp.core.sync.SyncRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AddEditCategoryViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
     private val categoryDao: CategoryDao,
+    private val syncRepository: SyncRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -29,10 +34,14 @@ class AddEditCategoryViewModel @Inject constructor(
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
+    private fun currentUserId(): String =
+        authRepository.currentUser.value?.userId ?: "local"
+
     init {
         categoryId?.let { id ->
             viewModelScope.launch {
-                categoryDao.getCategoryById(id)?.let { category ->
+                val uid = currentUserId()
+                categoryDao.getCategoryById(uid, id)?.let { category ->
                     _name.update { category.name }
                 }
             }
@@ -47,13 +56,15 @@ class AddEditCategoryViewModel @Inject constructor(
         viewModelScope.launch {
             val trimmed = _name.value.trim()
             if (trimmed.isBlank()) return@launch
+            val uid = currentUserId()
             if (categoryId != null) {
-                categoryDao.getCategoryById(categoryId)?.let { existing ->
+                categoryDao.getCategoryById(uid, categoryId)?.let { existing ->
                     categoryDao.update(existing.copy(name = trimmed))
                 }
             } else {
-                categoryDao.insert(CategoryEntity(name = trimmed))
+                categoryDao.insert(CategoryEntity(userId = uid, name = trimmed))
             }
+            syncRepository.uploadAllInBackground(uid)
             _saved.value = true
         }
     }
