@@ -52,11 +52,16 @@ class AuthGateViewModel @Inject constructor(
         currentUser.onEach { user ->
             appPreferences.setLastUserId(user?.userId)
             if (user != null) {
-                viewModelScope.launch {
-                    if (migrationHelper.needsMigration(user.userId)) {
-                        _showMigrationDialog.value = true
-                    } else {
-                        runPostMigrationSync(user.userId)
+                if (user.userId == "local") {
+                    // Local-only mode (Sprint 19.5): no migration, no sync
+                    _showMigrationDialog.value = false
+                } else {
+                    viewModelScope.launch {
+                        if (migrationHelper.needsMigration(user.userId)) {
+                            _showMigrationDialog.value = true
+                        } else {
+                            runPostMigrationSync(user.userId)
+                        }
                     }
                 }
             } else {

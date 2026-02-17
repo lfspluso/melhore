@@ -82,6 +82,15 @@ class ReminderListViewModel @Inject constructor(
     /** Sync status for UI (Sprint 19). */
     val syncStatus: StateFlow<SyncStatus> = syncRepository.syncStatus
 
+    /** True when user chose local-only (no Google sign-in); show "Apenas neste aparelho" instead of sync status (Sprint 19.5). */
+    val isLocalOnly: StateFlow<Boolean> = userIdFlow
+        .map { it == "local" }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = true
+        )
+
     private val _selectedTab = MutableStateFlow(loadInitialTab())
     val selectedTab: StateFlow<ReminderTab> = _selectedTab.asStateFlow()
 
@@ -329,7 +338,7 @@ class ReminderListViewModel @Inject constructor(
             val uid = userIdFlow.value
             reminderScheduler.cancelReminder(id)
             reminderDao.deleteById(id)
-            syncRepository.deleteReminderFromCloud(uid, id)
+            if (uid != "local") syncRepository.deleteReminderFromCloud(uid, id)
         }
     }
 
@@ -361,9 +370,9 @@ class ReminderListViewModel @Inject constructor(
             if (appPreferences.getDeleteAfterCompletion()) {
                 reminderScheduler.cancelReminder(reminderId)
                 reminderDao.deleteById(reminderId)
-                syncRepository.deleteReminderFromCloud(uid, reminderId)
+                if (uid != "local") syncRepository.deleteReminderFromCloud(uid, reminderId)
             } else {
-                syncRepository.uploadAllInBackground(uid)
+                if (uid != "local") syncRepository.uploadAllInBackground(uid)
             }
             
             // Dismiss confirmation dialog

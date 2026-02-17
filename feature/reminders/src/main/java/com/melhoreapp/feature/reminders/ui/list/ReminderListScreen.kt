@@ -95,6 +95,7 @@ fun ReminderListScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val hasActiveFilter = !filter.isAll()
     val syncStatus by viewModel.syncStatus.collectAsState(initial = SyncStatus.Idle)
+    val isLocalOnly by viewModel.isLocalOnly.collectAsState(initial = true)
 
     Scaffold(
         topBar = {
@@ -114,10 +115,14 @@ fun ReminderListScreen(
                         }
                     }
                 )
-                SyncStatusRow(
-                    syncStatus = syncStatus,
-                    onRetry = viewModel::retrySync
-                )
+                if (isLocalOnly) {
+                    LocalOnlyStatusRow()
+                } else {
+                    SyncStatusRow(
+                        syncStatus = syncStatus,
+                        onRetry = viewModel::retrySync
+                    )
+                }
             }
         },
         floatingActionButton = {
@@ -346,6 +351,32 @@ fun ReminderListScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun LocalOnlyStatusRow() {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Default.Sync,
+                contentDescription = "Apenas neste aparelho",
+                modifier = Modifier.padding(2.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            Text(
+                "Apenas neste aparelho",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

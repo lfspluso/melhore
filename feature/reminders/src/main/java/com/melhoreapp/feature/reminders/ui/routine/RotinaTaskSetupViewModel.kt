@@ -212,7 +212,7 @@ class RotinaTaskSetupViewModel @Inject constructor(
             reminderDao.update(updated)
 
             val uid = reminder.userId ?: "local"
-            syncRepository.uploadAllInBackground(uid)
+            if (uid != "local") syncRepository.uploadAllInBackground(uid)
             reminderScheduler.scheduleReminder(
                 reminderId = reminderId,
                 triggerAtMillis = nextDue,
@@ -277,7 +277,7 @@ class RotinaTaskSetupViewModel @Inject constructor(
             )
         }
 
-        syncRepository.uploadAllInBackground(uid)
+        if (uid != "local") syncRepository.uploadAllInBackground(uid)
         // Clear tasks list after saving
         _tasks.value = emptyList()
         return true

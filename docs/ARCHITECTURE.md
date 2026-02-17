@@ -134,6 +134,10 @@ flowchart LR
   AuthRepo --> currentUser
 ```
 
+### Local-only mode (Sprint 19.5)
+
+Users can tap **"Continuar sem entrar"** on the login screen to use the app without signing in. `AuthRepository.useLocalOnly()` sets a preference and emits synthetic `CurrentUser("local", null)` so the auth gate shows the main app. `AuthGateViewModel` skips migration and sync when `userId == "local"` (only sets `lastUserId` for boot reschedule). All sync/cloud calls (uploadAll, deleteFromCloud, etc.) are guarded so they are not invoked when `userId == "local"`. The Reminder list shows a static row **"Apenas neste aparelho"** instead of sync status when in local-only mode. Sign out for a local user clears the local-only preference and returns to the login screen; local data (userId = 'local') remains in the database so the user can tap "Continuar sem entrar" again and see the same data.
+
 ### Cloud sync (Sprint 18)
 
 On app start (user signed in): `AuthGateViewModel` runs `syncRepository.syncAll(userId)` (download from Firestore, merge into Room with cloud wins, then upload local state), then `enableAutoSync(userId)` to register Firestore snapshot listeners. On local create/update: ViewModels call `syncRepository.uploadAll(userId)`. On local delete: ViewModels call `syncRepository.deleteReminderFromCloud(userId, id)` (or deleteCategoryFromCloud / deleteChecklistItemFromCloud). Conflict resolution: for reminders use `updatedAt` (cloud wins when newer); for categories and checklist items overwrite with cloud.

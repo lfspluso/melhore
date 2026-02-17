@@ -64,7 +64,7 @@ class AddEditCategoryViewModel @Inject constructor(
             } else {
                 categoryDao.insert(CategoryEntity(userId = uid, name = trimmed))
             }
-            syncRepository.uploadAllInBackground(uid)
+            if (uid != "local") syncRepository.uploadAllInBackground(uid)
             _saved.value = true
         }
     }

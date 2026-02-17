@@ -217,7 +217,7 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(reminderId, _dueAt.value, t, existing.notes, isSnoozeFire = false)
-                syncRepository.uploadAllInBackground(uid)
+                if (uid != "local") syncRepository.uploadAllInBackground(uid)
             } else {
                 val customDaysString = if (_recurrenceType.value == RecurrenceType.CUSTOM) {
                     RecurrenceDaysConverter.serializeDays(_customRecurrenceDays.value)
@@ -255,7 +255,7 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(id, _dueAt.value, t, entity.notes, isSnoozeFire = false)
-                syncRepository.uploadAllInBackground(uid)
+                if (uid != "local") syncRepository.uploadAllInBackground(uid)
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -287,7 +287,8 @@ class AddReminderViewModel @Inject constructor(
             // Cancel any scheduled alarms
             reminderScheduler.cancelReminder(id)
             
-            syncRepository.uploadAllInBackground(currentUserId())
+            val uid = currentUserId()
+            if (uid != "local") syncRepository.uploadAllInBackground(uid)
             _showCancellationConfirmation.value = false
             Result.success(Unit)
         } catch (e: Exception) {

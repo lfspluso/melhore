@@ -8,10 +8,13 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.melhoreapp.core.common.Result
+import com.melhoreapp.core.common.preferences.AppPreferences
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.tasks.await
@@ -26,6 +29,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val googleSignInOptions: com.google.android.gms.auth.api.signin.GoogleSignInOptions,
+    private val appPreferences: AppPreferences,
     @ApplicationContext private val context: Context
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -34,7 +38,7 @@ class AuthRepository @Inject constructor(
         GoogleSignIn.getClient(context.applicationContext, googleSignInOptions)
     }
 
-    val currentUser: StateFlow<CurrentUser?> = callbackFlow {
+    private val firebaseUser: StateFlow<CurrentUser?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { auth ->
             trySend(auth.currentUser?.toCurrentUser())
         }
@@ -42,6 +46,23 @@ class AuthRepository @Inject constructor(
         trySend(firebaseAuth.currentUser?.toCurrentUser())
         awaitClose { firebaseAuth.removeAuthStateListener(listener) }
     }.stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, firebaseAuth.currentUser?.toCurrentUser())
+
+    private val _useLocalOnly = MutableStateFlow(appPreferences.getUseLocalOnly())
+
+    val currentUser: StateFlow<CurrentUser?> = combine(firebaseUser, _useLocalOnly) { fb, useLocal ->
+        if (fb != null) fb else if (useLocal) CurrentUser("local", null) else null
+    }.stateIn(
+        scope,
+        kotlinx.coroutines.flow.SharingStarted.Eagerly,
+        if (firebaseAuth.currentUser != null) firebaseAuth.currentUser?.toCurrentUser()
+        else if (appPreferences.getUseLocalOnly()) CurrentUser("local", null)
+        else null
+    )
+
+    fun useLocalOnly() {
+        appPreferences.setUseLocalOnly(true)
+        _useLocalOnly.value = true
+    }
 
     fun getSignInIntent(context: Context): Intent {
         return googleSignInClient.signInIntent
@@ -81,8 +102,14 @@ class AuthRepository @Inject constructor(
 
     fun signOut(): Flow<Result<Unit>> = flow {
         try {
-            firebaseAuth.signOut()
-            googleSignInClient.signOut().await()
+            val isLocalUser = currentUser.value?.userId == "local"
+            if (isLocalUser) {
+                appPreferences.setUseLocalOnly(false)
+                _useLocalOnly.value = false
+            } else {
+                firebaseAuth.signOut()
+                googleSignInClient.signOut().await()
+            }
             emit(Result.Success(Unit))
         } catch (e: Exception) {
             emit(Result.Error(e))

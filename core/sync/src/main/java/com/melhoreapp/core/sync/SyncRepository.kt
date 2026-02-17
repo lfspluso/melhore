@@ -86,6 +86,7 @@ class SyncRepository @Inject constructor(
             _syncStatus.value = SyncStatus.Synced
             emit(Result.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "syncAll failed for user $userId", e)
             _syncStatus.value = SyncStatus.Error(e.message)
             emit(Result.Error(e))
@@ -128,6 +129,7 @@ class SyncRepository @Inject constructor(
             _syncStatus.value = SyncStatus.Synced
             emit(Result.Success(Unit))
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.e(TAG, "Upload failed for user $userId", e)
             _syncStatus.value = SyncStatus.Error(e.message)
             emit(Result.Error(e))

@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,6 +63,10 @@ fun LoginScreen(
         when (signInState) {
             is Result.Loading -> {
                 CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(24.dp))
+                TextButton(onClick = { viewModel.useLocalOnly() }) {
+                    Text("Continuar sem entrar")
+                }
             }
             is Result.Error -> {
                 Text(
@@ -81,6 +86,10 @@ fun LoginScreen(
                 ) {
                     Text("Tentar novamente")
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = { viewModel.useLocalOnly() }) {
+                    Text("Continuar sem entrar")
+                }
             }
             else -> {
                 Button(
@@ -91,6 +100,10 @@ fun LoginScreen(
                     }
                 ) {
                     Text("Entrar com Google")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(onClick = { viewModel.useLocalOnly() }) {
+                    Text("Continuar sem entrar")
                 }
             }
         }

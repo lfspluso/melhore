@@ -91,7 +91,7 @@ class SettingsViewModel @Inject constructor(
                 toDelete.forEach { reminder ->
                     reminderScheduler.cancelReminder(reminder.id)
                     reminderDao.deleteById(reminder.id)
-                    syncRepository.deleteReminderFromCloud(uid, reminder.id)
+                    if (uid != "local") syncRepository.deleteReminderFromCloud(uid, reminder.id)
                 }
             }
         }

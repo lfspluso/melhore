@@ -43,7 +43,7 @@ class CategoryListViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = userIdFlow.value
             categoryDao.deleteById(id)
-            syncRepository.deleteCategoryFromCloud(uid, id)
+            if (uid != "local") syncRepository.deleteCategoryFromCloud(uid, id)
         }
     }
 }

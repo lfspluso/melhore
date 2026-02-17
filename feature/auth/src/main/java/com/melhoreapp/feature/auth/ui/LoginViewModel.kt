@@ -40,4 +40,8 @@ class LoginViewModel @Inject constructor(
     fun clearSignInState() {
         _signInState.update { null }
     }
+
+    fun useLocalOnly() {
+        authRepository.useLocalOnly()
+    }
 }

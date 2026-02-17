@@ -472,6 +472,7 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 17:** Database migration 6→7; user-scoped entities and DAOs; lastUserId for boot reschedule; local data migrated on sign-in.
 - **Sprint 18:** Cloud sync implementation (see section below).
 - **Sprint 19:** Data migration & sync polish (see section below).
+- **Sprint 19.5:** Local-only option: "Continuar sem entrar" on login; data stays on device; "Apenas neste aparelho" row; Sign out returns to login, data persists.
 - **Sprint 20:** (Future) Documentation and release prep.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.
@@ -577,6 +578,33 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 | 1 | Open Settings, tap "Sair". | User is signed out; login screen is shown. Session does not persist. |
 
 **Validation:** All tables above pass for the implemented behaviour.
+
+---
+
+## Sprint 19.5 – Local-only option
+
+**Goal:** User can use the app without signing in with Google; data stays local only; sync row shows "Apenas neste aparelho"; Sign out returns to login and local data persists.
+
+### Login and local-only entry
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Launch the app when not signed in (fresh install or after sign out). | Login screen is shown with "Melhore", subtitle, **"Entrar com Google"** button and **"Continuar sem entrar"** text button. |
+| 2 | Tap **"Continuar sem entrar"**. | App shows main app (Reminder list with bottom nav). No migration dialog. |
+| 3 | Open Reminder list (Tarefas or Rotinas). | A status row below the app bar shows **"Apenas neste aparelho"** (no "Sincronizado" or sync status). |
+| 4 | Create a reminder and a tag. Save. | Reminder and tag appear in the list; data is stored locally only. |
+| 5 | Force stop the app and launch again. | App opens directly on main app (no login screen). Same reminder and tag are shown. |
+| 6 | Open **Configurações**, tap **"Sair"**. | App returns to login screen. |
+| 7 | Tap **"Continuar sem entrar"** again. | Main app is shown; the same reminder and tag from step 4 are still present (data persisted). |
+
+### Regression: migration when signing in after local data
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | With local-only data (reminders/tags created in steps above), tap "Sair" to return to login. | Login screen is shown. |
+| 2 | Tap **"Entrar com Google"** and complete sign-in. | Migration dialog appears (local data exists); user can choose upload, merge, or start fresh. |
+
+**Validation:** "Continuar sem entrar" enters the app with local-only mode; no sync; "Apenas neste aparelho" is visible; Sign out and re-entry preserve data; signing in with Google after local data shows migration dialog.
 
 ---
 

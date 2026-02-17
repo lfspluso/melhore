@@ -18,6 +18,7 @@ private const val KEY_ENABLED_SNOOZE_OPTIONS = "enabled_snooze_options"
 private const val KEY_SELECTED_REMINDER_TAB = "selected_reminder_tab"
 private const val KEY_LAST_USER_ID = "last_user_id"
 private const val KEY_MIGRATION_COMPLETED_USER_IDS = "migration_completed_user_ids"
+private const val KEY_USE_LOCAL_ONLY = "use_local_only"
 
 /** Sentinel for "no date filter" (SharedPreferences cannot store null). */
 private const val DATE_FILTER_NOT_SET = 0L
@@ -185,5 +186,12 @@ class AppPreferences(context: Context) {
             ?.toMutableSet() ?: mutableSetOf()
         if (completed) current.add(userId) else current.remove(userId)
         prefs.edit().putString(KEY_MIGRATION_COMPLETED_USER_IDS, current.joinToString(",")).apply()
+    }
+
+    // Local-only mode (Sprint 19.5) – use app without Google sign-in; data stays on device only
+    fun getUseLocalOnly(): Boolean = prefs.getBoolean(KEY_USE_LOCAL_ONLY, false)
+
+    fun setUseLocalOnly(use: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_LOCAL_ONLY, use).apply()
     }
 }

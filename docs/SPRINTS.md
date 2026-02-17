@@ -2,7 +2,7 @@
 
 Each sprint ends with a runnable, testable slice. Update this file after each sprint (done criteria, lessons learned).
 
-**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19. **Not started:** Sprint 20.
+**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19, 19.5. **Not started:** Sprint 20.
 
 ---
 
@@ -1106,6 +1106,37 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Status:** Done.
 
 **Lessons learned:** Migration is shown only when local data exists (reminders/categories with `userId = 'local'`) and migration has not been completed for the current user (per-user flag in AppPreferences). AuthGateViewModel gates on `MigrationHelper.needsMigration(userId)`; if true it shows the dialog and defers sync until the user picks a strategy. Sync status lives in `SyncRepository.syncStatus` (Idle/Syncing/Synced/Error) and is shown in ReminderListScreen below the app bar; retry calls `retrySync(userId)` which runs `syncAll` again. Sign out was already in Settings (Sprint 16); no code change.
+
+---
+
+## Sprint 19.5 – Local-only (skip Google login) option
+
+**Goal:** Allow users to use the app without signing in with Google; data stays local only on the device (no cloud sync).
+
+**Deliverables:**
+
+- **core:common (AppPreferences):** Add `use_local_only` preference; `getUseLocalOnly()` / `setUseLocalOnly()`.
+- **core:auth (AuthRepository):** Combine Firebase auth state with local-only preference so `currentUser` is synthetic `CurrentUser("local", null)` when no Firebase user and preference is set; add `useLocalOnly()`; update `signOut()` to clear local-only when current user is local (no Firebase/Google sign-out).
+- **app (AuthGateViewModel):** When `user.userId == "local"`, skip migration and sync; only set `lastUserId` for boot reschedule.
+- **feature:auth:** LoginScreen adds "Continuar sem entrar" (TextButton); LoginViewModel adds `useLocalOnly()` calling `authRepository.useLocalOnly()`.
+- **Sync guards:** All callers of `uploadAllInBackground`, `uploadAll`, `deleteReminderFromCloud`, `deleteCategoryFromCloud`, `deleteChecklistItemFromCloud` guard with `userId != "local"` (ReminderListViewModel, AddReminderViewModel, RotinaTaskSetupViewModel, AddEditCategoryViewModel, CategoryListViewModel, SettingsViewModel).
+- **Reminder list:** When local-only, show status row "Apenas neste aparelho" instead of sync status (ReminderListViewModel exposes `isLocalOnly`; ReminderListScreen shows `LocalOnlyStatusRow`).
+- **Strings:** Add `continue_without_sign_in`, `local_only_status` in app strings (optional use in composables).
+
+**Done criteria:**
+
+- [x] User can tap "Continuar sem entrar" on login screen and use the app with local data.
+- [x] No migration dialog and no sync when in local-only mode.
+- [x] "Sair" in Settings returns to login screen; local data persists.
+- [x] After tapping "Continuar sem entrar" again, same data appears.
+- [x] Boot reschedule works for local user (`lastUserId = "local"`).
+- [x] No cloud/sync calls when `userId == "local"`.
+- [x] Reminder list shows "Apenas neste aparelho" when local-only.
+- [x] Validate via [TESTING.md](TESTING.md) (Sprint 19.5 section).
+
+**Status:** Done.
+
+**Lessons learned:** Reusing `userId = "local"` (Sprint 17) keeps DAOs and boot reschedule unchanged. AuthRepository combines Firebase auth flow with a `MutableStateFlow` for local-only so a single `currentUser` StateFlow drives the auth gate; sign-out for local user only clears the preference and flow. Sync and migration are skipped at the gate and at every call site for "local", so Firestore is never invoked with "local" as document path.
 
 ---
 
