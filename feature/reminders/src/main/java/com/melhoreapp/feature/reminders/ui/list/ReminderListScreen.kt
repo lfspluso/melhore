@@ -1140,6 +1140,7 @@ private fun ReminderItem(
                     val recurrenceLabel = when (reminder.type) {
                         RecurrenceType.NONE -> ""
                         RecurrenceType.DAILY -> "Diário"
+                        RecurrenceType.WEEKDAYS -> "Dias úteis"
                         RecurrenceType.WEEKLY -> "Semanal"
                         RecurrenceType.BIWEEKLY -> "Quinzenal"
                         RecurrenceType.MONTHLY -> "Mensal"

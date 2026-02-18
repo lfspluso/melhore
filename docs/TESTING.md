@@ -473,6 +473,7 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 18:** Cloud sync implementation (see section below).
 - **Sprint 19:** Data migration & sync polish (see section below).
 - **Sprint 19.5:** Local-only option: "Continuar sem entrar" on login; data stays on device; "Apenas neste aparelho" row; Sign out returns to login, data persists.
+- **Sprint 19.75:** Weekday daily trigger: "Dias úteis" recurrence type fires Monday-Friday, skipping weekends; Rotinas with weekdays fire every weekday for task setup.
 - **Sprint 20:** (Future) Documentation and release prep.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.

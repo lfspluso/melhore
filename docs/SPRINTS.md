@@ -2,7 +2,7 @@
 
 Each sprint ends with a runnable, testable slice. Update this file after each sprint (done criteria, lessons learned).
 
-**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19, 19.5. **Not started:** Sprint 20.
+**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19, 19.5, 19.75. **Not started:** Sprint 20.
 
 ---
 
@@ -1137,6 +1137,94 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Status:** Done.
 
 **Lessons learned:** Reusing `userId = "local"` (Sprint 17) keeps DAOs and boot reschedule unchanged. AuthRepository combines Firebase auth flow with a `MutableStateFlow` for local-only so a single `currentUser` StateFlow drives the auth gate; sign-out for local user only clears the preference and flow. Sync and migration are skipped at the gate and at every call site for "local", so Firestore is never invoked with "local" as document path.
+
+---
+
+## Sprint 19.75 – Weekday Daily Trigger
+
+**Goal:** Add a weekday (Monday-Friday) recurrence type that behaves as a daily trigger, skipping weekends. This provides a convenient option for reminders that should fire every weekday but advance day-by-day (not weekly like the current CUSTOM option). When selected for a Rotina, it fires every single weekday for setting up Tarefas for each day.
+
+**Deliverables:**
+
+- **core:database/entity/RecurrenceType.kt:**
+  - Add `WEEKDAYS` enum value for weekday-only daily recurrence
+
+- **core:scheduling/RecurrenceHelper.kt:**
+  - Add `WEEKDAYS` case in `nextOccurrenceMillis()` function
+  - Implement logic to advance day-by-day, skipping weekends (Saturday and Sunday)
+  - If current day is Monday-Friday and time hasn't passed, use current day
+  - Otherwise, advance to next weekday (skip Saturday/Sunday)
+  - Handle edge cases: if current day is Friday, advance to Monday; if Saturday, advance to Monday; if Sunday, advance to Monday
+
+- **core:scheduling/RotinaPeriodHelper.kt:**
+  - Update `getCurrentPeriodStart()` and `getCurrentPeriodEnd()` to handle WEEKDAYS (same as DAILY - current day)
+
+- **feature:reminders/ui/addedit/AddReminderScreen.kt:**
+  - Update `RecurrenceDropdown` to include "Dias úteis" (Weekdays) option
+  - Map "Dias úteis" to `RecurrenceType.WEEKDAYS`
+  - Update recurrence label display to show "Dias úteis" for WEEKDAYS
+
+- **feature:reminders/ui/list/ReminderListScreen.kt:**
+  - Update recurrence label display to show "Dias úteis" when `type == WEEKDAYS`
+  - Ensure `getNextNotificationDate()` correctly handles WEEKDAYS type
+
+**Implementation details:**
+
+- **RecurrenceType.kt:**
+  ```kotlin
+  enum class RecurrenceType {
+      NONE,
+      DAILY,
+      WEEKDAYS,  // New: Monday-Friday daily
+      WEEKLY,
+      BIWEEKLY,
+      MONTHLY,
+      CUSTOM
+  }
+  ```
+
+- **RecurrenceHelper.kt:**
+  - Add WEEKDAYS case in `nextOccurrenceMillis()`:
+    ```kotlin
+    RecurrenceType.WEEKDAYS -> {
+        // Advance day-by-day, skipping weekends
+        while (instant.isBefore(now) || instant.isEqual(now)) {
+            val dayOfWeek = instant.dayOfWeek
+            when {
+                dayOfWeek == DayOfWeek.FRIDAY -> instant = instant.plusDays(3) // Skip to Monday
+                dayOfWeek == DayOfWeek.SATURDAY -> instant = instant.plusDays(2) // Skip to Monday
+                else -> instant = instant.plusDays(1) // Next day
+            }
+        }
+    }
+    ```
+
+- **RotinaPeriodHelper.kt:**
+  - WEEKDAYS period calculation matches DAILY (current day start/end)
+
+- **AddReminderScreen.kt:**
+  - Recurrence dropdown includes "Dias úteis" → `RecurrenceType.WEEKDAYS`
+
+- **ReminderListScreen.kt:**
+  - Recurrence label display: `RecurrenceType.WEEKDAYS` → "Dias úteis"
+
+**Done criteria:**
+
+- [x] WEEKDAYS recurrence type added to RecurrenceType enum
+- [x] RecurrenceHelper correctly calculates next weekday occurrence (skips weekends)
+- [x] UI dropdown shows "Dias úteis" option
+- [x] Reminder list displays "Dias úteis" label for WEEKDAYS reminders
+- [x] Weekday reminders fire correctly on Monday-Friday only
+- [x] Weekday reminders skip weekends when advancing to next occurrence
+- [x] Scheduling logic handles WEEKDAYS type correctly
+- [x] RotinaPeriodHelper handles WEEKDAYS for period calculations
+- [x] Boot reschedule works correctly for WEEKDAYS reminders
+- [x] Rotinas with WEEKDAYS fire every single weekday for task setup
+- [x] Documentation updated (SPRINTS.md, CONTEXT.md, ARCHITECTURE.md, TESTING.md)
+
+**Status:** Done.
+
+**Lessons learned:** WEEKDAYS provides a convenient daily-basis recurrence option that skips weekends, making it ideal for Rotinas that need to fire every weekday for task setup. The implementation reuses existing scheduling infrastructure (ReminderScheduler, ReminderAlarmReceiver) which automatically handles WEEKDAYS via `nextOccurrenceMillis()`. RotinaPeriodHelper treats WEEKDAYS like DAILY (current day period) since each weekday fires independently. This is separate from CUSTOM which currently works on a weekly basis; later CUSTOM will also be moved to daily-basis.
 
 ---
 

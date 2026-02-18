@@ -23,7 +23,7 @@ object RotinaPeriodHelper {
         val today = ZonedDateTime.now(zone).toLocalDate()
         return when (reminder.type) {
             RecurrenceType.NONE -> today.atStartOfDay(zone).toInstant().toEpochMilli()
-            RecurrenceType.DAILY -> today.atStartOfDay(zone).toInstant().toEpochMilli()
+            RecurrenceType.DAILY, RecurrenceType.WEEKDAYS -> today.atStartOfDay(zone).toInstant().toEpochMilli()
             RecurrenceType.WEEKLY, RecurrenceType.CUSTOM -> {
                 val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
                 val weekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
@@ -48,7 +48,7 @@ object RotinaPeriodHelper {
         val zone = ZoneId.systemDefault()
         val today = ZonedDateTime.now(zone).toLocalDate()
         return when (reminder.type) {
-            RecurrenceType.NONE, RecurrenceType.DAILY ->
+            RecurrenceType.NONE, RecurrenceType.DAILY, RecurrenceType.WEEKDAYS ->
                 today.atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
             RecurrenceType.WEEKLY, RecurrenceType.CUSTOM -> {
                 val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek

@@ -503,6 +503,7 @@ private fun RecurrenceDropdown(
     val selectedLabel = when (selected) {
         RecurrenceType.NONE -> "Nenhuma"
         RecurrenceType.DAILY -> "Diário"
+        RecurrenceType.WEEKDAYS -> "Dias úteis"
         RecurrenceType.WEEKLY -> "Semanal"
         RecurrenceType.BIWEEKLY -> "Quinzenal"
         RecurrenceType.MONTHLY -> "Mensal"
@@ -530,6 +531,7 @@ private fun RecurrenceDropdown(
                 val label = when (type) {
                     RecurrenceType.NONE -> "Nenhuma"
                     RecurrenceType.DAILY -> "Diário"
+                    RecurrenceType.WEEKDAYS -> "Dias úteis"
                     RecurrenceType.WEEKLY -> "Semanal"
                     RecurrenceType.BIWEEKLY -> "Quinzenal"
                     RecurrenceType.MONTHLY -> "Mensal"

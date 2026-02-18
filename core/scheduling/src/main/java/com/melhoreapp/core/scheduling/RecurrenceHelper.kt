@@ -32,6 +32,17 @@ fun nextOccurrenceMillis(
                 instant = instant.plusDays(1)
             }
         }
+        RecurrenceType.WEEKDAYS -> {
+            // Advance day-by-day, skipping weekends (Saturday and Sunday)
+            while (instant.isBefore(now) || instant.isEqual(now)) {
+                val dayOfWeek = instant.dayOfWeek
+                when {
+                    dayOfWeek == DayOfWeek.FRIDAY -> instant = instant.plusDays(3) // Skip to Monday
+                    dayOfWeek == DayOfWeek.SATURDAY -> instant = instant.plusDays(2) // Skip to Monday
+                    else -> instant = instant.plusDays(1) // Next day
+                }
+            }
+        }
         RecurrenceType.WEEKLY -> {
             while (instant.isBefore(now) || instant.isEqual(now)) {
                 instant = instant.plusWeeks(1)
