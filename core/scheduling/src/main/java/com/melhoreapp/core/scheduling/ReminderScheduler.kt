@@ -199,7 +199,8 @@ class ReminderScheduler(
                     isSnoozeFire = isSnoozeFire
                 )
             }
-            if (reminder.type == RecurrenceType.NONE) {
+            // One-time non-Rotina reminders only: Rotinas never get pending-confirmation check
+            if (reminder.type == RecurrenceType.NONE && !reminder.isRoutine) {
                 schedulePendingConfirmationCheck(reminder.id, reminder.dueAt)
             }
         }

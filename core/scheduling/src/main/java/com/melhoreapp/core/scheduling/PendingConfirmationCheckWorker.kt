@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Periodic worker that checks every hour for reminders with PENDENTE CONFIRMAÇÃO status
  * and notifies the user if any are found.
+ * Includes both one-time Melhores and Tarefas created by Rotinas (they have isRoutine=false,
+ * type=NONE; Rotina parents are excluded by isRoutine).
  */
 @HiltWorker
 class PendingConfirmationCheckWorker @AssistedInject constructor(
@@ -37,44 +39,55 @@ class PendingConfirmationCheckWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val now = System.currentTimeMillis()
-        Log.d(TAG, "PendingConfirmationCheckWorker doWork started now=$now")
+        return try {
+            val now = System.currentTimeMillis()
+            Log.d(TAG, "PendingConfirmationCheckWorker doWork started now=$now")
 
-        // Get current user ID (or "local" if not signed in)
-        val userId = authRepository.currentUser.first()?.userId ?: "local"
-        Log.d(TAG, "userId=$userId")
+            // Get current user ID (or "local" if not signed in)
+            val userId = authRepository.currentUser.first()?.userId ?: "local"
+            Log.d(TAG, "userId=$userId")
 
-        // Get all active reminders for current user
-        val activeReminders = database.reminderDao().getActiveReminders(userId)
-        Log.d(TAG, "activeReminders count=${activeReminders.size}")
+            // Get all active reminders for current user (includes task reminders from Rotinas)
+            val activeReminders = database.reminderDao().getActiveReminders(userId)
+            Log.d(TAG, "activeReminders count=${activeReminders.size}")
 
-        // Filter for pending confirmation reminders and log why each is included or excluded
-        val pendingReminders = mutableListOf<ReminderEntity>()
-        for (reminder in activeReminders) {
-            val passesActive = reminder.status == ReminderStatus.ACTIVE
-            val passesDue = reminder.dueAt <= now
-            val passesSnooze = reminder.snoozedUntil == null || reminder.snoozedUntil!! <= now
-            val passesType = reminder.type == RecurrenceType.NONE
-            val passes = passesActive && passesDue && passesSnooze && passesType
-            val reasons = mutableListOf<String>()
-            if (!passesActive) reasons.add("status!=ACTIVE(${reminder.status})")
-            if (!passesDue) reasons.add("dueAt(${reminder.dueAt})>now($now)")
-            if (!passesSnooze) reasons.add("snoozedUntil=${reminder.snoozedUntil}")
-            if (!passesType) reasons.add("type!=NONE(${reminder.type})")
-            Log.d(TAG, "reminder id=${reminder.id} title=\"${reminder.title}\" dueAt=${reminder.dueAt} status=${reminder.status} type=${reminder.type} snoozedUntil=${reminder.snoozedUntil} passes=$passes ${if (reasons.isNotEmpty()) "excluded: ${reasons.joinToString()}" else ""}")
-            if (passes) pendingReminders.add(reminder)
+            // Filter for pending confirmation reminders and log why each is included or excluded.
+            // Rotinas (isRoutine) are never pending confirmation: they recur and notify at next occurrence or user skips day.
+            // Task reminders created by Rotinas (isRoutine=false, type=NONE, parentReminderId!=null) are included.
+            val pendingReminders = mutableListOf<ReminderEntity>()
+            for (reminder in activeReminders) {
+                if (reminder.isRoutine) {
+                    Log.d(TAG, "reminder id=${reminder.id} title=\"${reminder.title}\" excluded: isRoutine (Rotinas are not pending confirmation)")
+                    continue
+                }
+                val passesActive = reminder.status == ReminderStatus.ACTIVE
+                val passesDue = reminder.dueAt <= now
+                val passesSnooze = reminder.snoozedUntil == null || reminder.snoozedUntil!! <= now
+                val passesType = reminder.type == RecurrenceType.NONE
+                val passes = passesActive && passesDue && passesSnooze && passesType
+                val reasons = mutableListOf<String>()
+                if (!passesActive) reasons.add("status!=ACTIVE(${reminder.status})")
+                if (!passesDue) reasons.add("dueAt(${reminder.dueAt})>now($now)")
+                if (!passesSnooze) reasons.add("snoozedUntil=${reminder.snoozedUntil}")
+                if (!passesType) reasons.add("type!=NONE(${reminder.type})")
+                Log.d(TAG, "reminder id=${reminder.id} title=\"${reminder.title}\" dueAt=${reminder.dueAt} status=${reminder.status} type=${reminder.type} snoozedUntil=${reminder.snoozedUntil} passes=$passes ${if (reasons.isNotEmpty()) "excluded: ${reasons.joinToString()}" else ""}")
+                if (passes) pendingReminders.add(reminder)
+            }
+
+            Log.d(TAG, "pendingReminders count=${pendingReminders.size} ids=${pendingReminders.map { it.id }} titles=${pendingReminders.map { it.title }}")
+            if (pendingReminders.isNotEmpty()) {
+                Log.d(TAG, "Showing pending confirmation notification with ${pendingReminders.size} reminder(s)")
+                showPendingConfirmationNotification(applicationContext, pendingReminders)
+            } else {
+                Log.d(TAG, "No pending reminders, notification not shown")
+            }
+
+            Log.d(TAG, "PendingConfirmationCheckWorker doWork finished")
+            Result.success()
+        } catch (e: Exception) {
+            Log.e(TAG, "PendingConfirmationCheckWorker doWork failed", e)
+            Result.failure()
         }
-
-        Log.d(TAG, "pendingReminders count=${pendingReminders.size} ids=${pendingReminders.map { it.id }} titles=${pendingReminders.map { it.title }}")
-        if (pendingReminders.isNotEmpty()) {
-            Log.d(TAG, "Showing pending confirmation notification with ${pendingReminders.size} reminder(s)")
-            showPendingConfirmationNotification(applicationContext, pendingReminders)
-        } else {
-            Log.d(TAG, "No pending reminders, notification not shown")
-        }
-
-        Log.d(TAG, "PendingConfirmationCheckWorker doWork finished")
-        return Result.success()
     }
 
     private fun showPendingConfirmationNotification(

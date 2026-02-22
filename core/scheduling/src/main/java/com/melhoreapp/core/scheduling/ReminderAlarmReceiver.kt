@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.melhoreapp.core.common.preferences.AppPreferences
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderStatus
@@ -35,12 +36,13 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         }
 
         val app = context.applicationContext as? SchedulingContext ?: return
-        runBlocking {
-            val reminder = app.database.reminderDao().getReminderById(reminderId) ?: return@runBlocking
-            // Only process if reminder is ACTIVE
-            if (reminder.status != ReminderStatus.ACTIVE) return@runBlocking
+        try {
+            runBlocking {
+                val reminder = app.database.reminderDao().getReminderById(reminderId) ?: return@runBlocking
+                // Only process if reminder is ACTIVE
+                if (reminder.status != ReminderStatus.ACTIVE) return@runBlocking
 
-            // Check if this is a Rotina reminder and if tasks already exist for current period
+                // Check if this is a Rotina reminder and if tasks already exist for current period
             if (reminder.isRoutine && !isSnoozeFire) {
                 val userId = reminder.userId ?: "local"
                 val tasks = app.database.reminderDao().getTasksByParentReminderIdOnce(userId, reminderId)
@@ -125,7 +127,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                 app.database.reminderDao().update(updated)
             }
 
-            // Schedule next notification in 30 minutes if reminder is still ACTIVE
+            // Schedule next notification in 30 minutes if reminder is still ACTIVE (Rotinas too: until user skips day or adds tasks)
             val thirtyMinutesFromNow = now + (30 * 60 * 1000L)
             app.reminderScheduler.scheduleReminder(
                 reminderId = reminderId,
@@ -150,6 +152,9 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
                     isSnoozeFire = false
                 )
             }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "ReminderAlarmReceiver failed for reminderId=$reminderId", e)
         }
     }
 
@@ -455,6 +460,7 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        private const val TAG = "ReminderAlarmReceiver"
         const val EXTRA_REMINDER_ID = "reminder_id"
         const val EXTRA_TITLE = "title"
         const val EXTRA_NOTES = "notes"

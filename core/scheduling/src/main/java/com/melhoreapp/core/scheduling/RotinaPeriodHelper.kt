@@ -2,6 +2,7 @@ package com.melhoreapp.core.scheduling
 
 import com.melhoreapp.core.database.entity.RecurrenceType
 import com.melhoreapp.core.database.entity.ReminderEntity
+import java.time.DayOfWeek
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -24,6 +25,12 @@ object RotinaPeriodHelper {
         return when (reminder.type) {
             RecurrenceType.NONE -> today.atStartOfDay(zone).toInstant().toEpochMilli()
             RecurrenceType.DAILY, RecurrenceType.WEEKDAYS -> today.atStartOfDay(zone).toInstant().toEpochMilli()
+            RecurrenceType.WEEKENDS -> {
+                val saturday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SATURDAY))
+                val isWeekend = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
+                val periodSaturday = if (isWeekend) saturday else saturday.plusWeeks(1)
+                periodSaturday.atStartOfDay(zone).toInstant().toEpochMilli()
+            }
             RecurrenceType.WEEKLY, RecurrenceType.CUSTOM -> {
                 val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
                 val weekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
@@ -50,6 +57,13 @@ object RotinaPeriodHelper {
         return when (reminder.type) {
             RecurrenceType.NONE, RecurrenceType.DAILY, RecurrenceType.WEEKDAYS ->
                 today.atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
+            RecurrenceType.WEEKENDS -> {
+                val saturday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SATURDAY))
+                val isWeekend = today.dayOfWeek == DayOfWeek.SATURDAY || today.dayOfWeek == DayOfWeek.SUNDAY
+                val periodSaturday = if (isWeekend) saturday else saturday.plusWeeks(1)
+                val periodSunday = periodSaturday.plusDays(1)
+                periodSunday.atTime(LocalTime.MAX).atZone(zone).toInstant().toEpochMilli()
+            }
             RecurrenceType.WEEKLY, RecurrenceType.CUSTOM -> {
                 val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
                 val weekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))

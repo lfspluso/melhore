@@ -1141,6 +1141,7 @@ private fun ReminderItem(
                         RecurrenceType.NONE -> ""
                         RecurrenceType.DAILY -> "Diário"
                         RecurrenceType.WEEKDAYS -> "Dias úteis"
+                        RecurrenceType.WEEKENDS -> "Finais de semana"
                         RecurrenceType.WEEKLY -> "Semanal"
                         RecurrenceType.BIWEEKLY -> "Quinzenal"
                         RecurrenceType.MONTHLY -> "Mensal"

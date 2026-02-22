@@ -2,7 +2,7 @@
 
 Each sprint ends with a runnable, testable slice. Update this file after each sprint (done criteria, lessons learned).
 
-**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19, 19.5, 19.75. **Not started:** Sprint 20.
+**Status summary:** **Done:** Sprints 0–11.5, 12, 12.1, 12.2, 12.2.1, 12.3, 13–19, 19.5, 19.75, 20, 21.1, 21.2, 21.3, 21.4. **Not started:** Sprint 22.
 
 ---
 
@@ -1228,7 +1228,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 21 – Bug Fixes and UI Improvements
+## Sprint 20 – Bug Fixes and UI Improvements
 
 **Goal:** Fix critical bugs and improve UI: Tarefas visibility, Rotina notification prevention, UI rearrangement, hourly pending confirmation check, and "Melhore" branding capitalization.
 
@@ -1260,7 +1260,154 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 
 ---
 
-## Sprint 20 – Documentation and release prep
+## Sprint 21 – Rotina skip day, PENDENTE CONFIRMAÇÃO, ícone e Finais de semana
+
+Sprint 21 é dividida em subsprints 21.1–21.4. Ordem de execução: 21.1 → 21.2 → 21.3 → 21.4. A Sprint 22 (Documentation and release prep) é sempre a última.
+
+---
+
+### Sprint 21.1 – Rotina: ao pular dia, não notificar até o dia seguinte
+
+**Goal:** Quando o usuário pula o dia numa Rotina, não enviar mais notificações até a próxima ocorrência (ex.: dia seguinte).
+
+**Requisitos funcionais**
+
+- RF 21.1.1 – Quando o usuário acionar "Pular dia" numa notificação de Rotina (ou na tela de configuração de tarefas da Rotina), o sistema deve avançar a Rotina para a próxima ocorrência (ex.: próximo dia útil, próxima semana, conforme o tipo de recorrência).
+- RF 21.1.2 – Após "Pular dia", o sistema **não** deve enviar nenhuma notificação dessa Rotina até o momento da próxima ocorrência agendada (ex.: não notificar em 30 minutos; só no próximo dia/horário definido pela recorrência).
+- RF 21.1.3 – Rotinas recebem o lembrete de 30 minutos como Melhores normais até o usuário acionar "Pular dia"; após "Pular dia", apenas o disparo na próxima ocorrência (diária, semanal, etc.) é agendado.
+
+**Requisitos não funcionais**
+
+- RNF 21.1.1 – Tratamento de erros em receivers (try/catch, logs) para falhas de agendamento ou acesso a dados.
+- RNF 21.1.2 – Código testável: lógica de decisão (ex.: ao pular dia cancelar alarmes e agendar só próxima ocorrência) passível de validação manual ou unitária.
+
+**Deliverables**
+
+- **ReminderAlarmReceiver:** Ao processar um lembrete Rotina, agendar o alarme de 30 minutos como para Melhores normais (para que o usuário seja lembrado até pular o dia ou adicionar tarefas). Para Rotinas recorrentes, também atualizar `dueAt`, persistir e agendar a próxima ocorrência.
+- **RoutineSkipReceiver:** Antes de atualizar o reminder e agendar a próxima ocorrência, chamar `app.reminderScheduler.cancelReminder(reminderId)` para cancelar todos os alarmes (principal e 30 min). Em seguida, atualizar `dueAt`, persistir e agendar só o próximo disparo.
+
+**Done criteria**
+
+- [x] Ao pular o dia numa Rotina, não chega notificação em 30 minutos.
+- [x] A próxima notificação da Rotina ocorre apenas na próxima ocorrência (ex.: dia seguinte para recorrência diária).
+- [x] Documentação (SPRINTS, ARCHITECTURE, TESTING) atualizada para a Sprint 21.1.
+
+**Status:** Done (tested and validated).
+
+**Validated:** Manual testing completed; skip day, 30‑min repeat when not skipping, and next occurrence behaviour as specified.
+
+**Lessons learned:** Rotinas receive the 30-minute recurring reminder like normal Melhores until the user taps "Pular dia". When the user skips the day (from the notification or from the task setup screen), `cancelReminder(reminderId)` is called before updating and rescheduling, so no further 30-min notifications fire—only the next occurrence is scheduled. If the user dismisses the notification or opens without skipping/adding tasks, 30-min reminders continue until they act or the next occurrence fires.
+
+---
+
+### Sprint 21.2 – PENDENTE CONFIRMAÇÃO para todas as tarefas e a cada hora
+
+**Goal:** Garantir que **todas** as tarefas (Melhores one-time e Tarefas criadas por Rotinas) disparem a notificação PENDENTE CONFIRMAÇÃO, e que essa notificação repita a cada hora até o usuário confirmar (completar/adiar/cancelar).
+
+**Requisitos funcionais**
+
+- RF 21.2.1 – **Todas** as tarefas em estado "pendente de confirmação" devem ser consideradas para a notificação PENDENTE CONFIRMAÇÃO, incluindo: (a) Melhores one-time (sem recorrência) vencidos e ativos; (b) Tarefas criadas por Rotinas, vencidas e ativas.
+- RF 21.2.2 – A notificação "Melhores pendentes de confirmação" deve ser disparada **a cada hora** enquanto existir pelo menos um lembrete/tarefa pendente de confirmação (ACTIVE, data/hora vencida, não adiado, tipo one-time).
+- RF 21.2.3 – O primeiro aviso de pending confirmation para uma tarefa recém-criada pode ocorrer até 60 minutos após o dueAt da tarefa (alarme em dueAt+60min), além do ciclo horário do worker.
+- RF 21.2.4 – A seção "PENDENTE CONFIRMAÇÃO" na aba Tarefas deve listar também as Tarefas criadas por Rotinas que estejam vencidas e ativas.
+- RF 21.2.5 – A notificação deixa de ser enviada para um item quando o usuário confirmar: completar, adiar (snooze) ou cancelar esse lembrete/tarefa.
+
+**Requisitos não funcionais**
+
+- RNF 21.2.1 – Tratamento de erros no worker (try/catch, logs, `Result.failure()` em falha).
+- RNF 21.2.2 – Ao criar/atualizar tarefas na tela de Rotina, falhas ao agendar o pending-confirmation check não devem impedir a gravação das tarefas (try/catch, log).
+
+**Deliverables**
+
+- **PendingConfirmationCheckWorker:** Manter critério atual (ACTIVE, `dueAt <= now`, snooze expirado, `type == NONE`); garantir tratamento de erro em `doWork()` (try/catch, `Result.failure()` em falha, logs). Documentar que tarefas (incl. de Rotinas) estão incluídas.
+- **RotinaTaskSetupViewModel:** Ao criar cada tarefa (child reminder), chamar `reminderScheduler.schedulePendingConfirmationCheck(reminderId, dueAt)` para o primeiro aviso em dueAt+60min. Tratar exceções ao agendar (try/catch, log).
+- Documentação que a seção PENDENTE CONFIRMAÇÃO inclui Tarefas de Rotinas.
+
+**Done criteria**
+
+- [x] Tarefas criadas por Rotinas aparecem na seção PENDENTE CONFIRMAÇÃO quando vencidas.
+- [x] Notificação de pendentes dispara a cada hora (worker).
+- [x] Primeiro aviso para tarefa nova pode ocorrer em dueAt+60min (alarme de pending confirmation).
+- [x] Documentação (SPRINTS, ARCHITECTURE, CONTEXT, TESTING) atualizada para a Sprint 21.2.
+
+**Status:** Done (tested and validated).
+
+**Lessons learned:** The worker already included task reminders (isRoutine=false, type=NONE); only error handling (try/catch, Result.failure()) and KDoc were added. RotinaTaskSetupViewModel now calls schedulePendingConfirmationCheck(taskId, task.startTime) after each saved task so the first alert can fire at dueAt+60min; failures are caught and logged so they do not block saving tasks.
+
+---
+
+### Sprint 21.3 – Ícone do app
+
+**Goal:** Ter um ícone próprio para o app (substituir o ícone genérico atual).
+
+**Requisitos funcionais**
+
+- RF 21.3.1 – O app deve exibir um ícone próprio (não o ícone genérico atual) no launcher, na barra de tarefas e em qualquer lugar onde o sistema exiba o ícone do aplicativo.
+- RF 21.3.2 – O ícone deve ser adequado para identificação visual do MelhoreApp (ex.: alinhado à marca ou ao propósito do app).
+
+**Requisitos não funcionais**
+
+- RNF 21.3.1 – O ícone deve seguir as recomendações de ícones adaptativos do Android (foreground + background) quando suportado.
+- RNF 21.3.2 – O ícone deve ter boa aparência nas densidades esperadas (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi) ou usar recurso vetorial/adaptativo que escale corretamente.
+- RNF 21.3.3 – A alteração do ícone não deve quebrar o build nem a instalação do app.
+
+**Deliverables**
+
+- Criar/atualizar ícone adaptativo (foreground + background) conforme Android Adaptive Icons.
+- Manter ou ajustar `android:icon` e `android:roundIcon` no AndroidManifest.xml para apontar ao novo ícone.
+- Incluir densidades necessárias ou vetor/adaptativo para boa aparência em todos os dispositivos.
+
+**Done criteria**
+
+- [x] App exibe ícone próprio (não genérico) no launcher e na barra de tarefas.
+- [x] Ícone adaptativo onde suportado pelo Android.
+- [x] Build e instalação concluem sem erro.
+- [x] Documentação (SPRINTS e, se relevante, README/CONTEXT) atualizada para a Sprint 21.3.
+
+**Status:** Done (tested and validated).
+
+**Lessons learned:** Ícone adaptativo implementado com `mipmap-anydpi-v26` (foreground PNG + background color) e fallback em `mipmap-anydpi` (layer-list) para API &lt; 26. O PNG do usuário foi colocado em `app/src/main/res/drawable/ic_launcher_foreground.png`; AndroidManifest passou a usar `@mipmap/ic_launcher` e `@mipmap/ic_launcher_round`. Validação manual conforme TESTING.md (launcher e task switcher).
+
+---
+
+### Sprint 21.4 – Período "Finais de semana"
+
+**Goal:** Adicionar opção de recorrência "Finais de semana" (sábado e domingo), espelhando o padrão de "Dias úteis" (WEEKDAYS).
+
+**Requisitos funcionais**
+
+- RF 21.4.1 – O usuário deve poder escolher a opção "Finais de semana" ao criar ou editar um Melhore ou uma Rotina (dropdown de recorrência).
+- RF 21.4.2 – Lembretes com recorrência "Finais de semana" devem disparar **apenas** em sábado e domingo (nunca em segunda a sexta).
+- RF 21.4.3 – A próxima ocorrência de um lembrete WEEKENDS deve ser calculada corretamente: se hoje for segunda a sexta → próximo sábado (ou domingo, conforme o horário); se sábado → próximo domingo ou próximo sábado; se domingo → próximo sábado.
+- RF 21.4.4 – Para Rotinas com recorrência "Finais de semana", o período de criação de tarefas (RotinaPeriodHelper) deve ser o fim de semana atual: se hoje é sábado ou domingo, período = sábado 00:00 a domingo 23:59:59; se hoje é segunda a sexta, definir regra clara (ex.: próximo fim de semana) para consistência com a tela de tarefas da Rotina.
+- RF 21.4.5 – Na lista de Melhores/Rotinas, o label exibido para esse tipo de recorrência deve ser "Finais de semana".
+
+**Requisitos não funcionais**
+
+- RNF 21.4.1 – Boot reschedule e qualquer uso de `nextOccurrenceMillis`/período devem tratar `WEEKENDS` sem regressão para outros tipos.
+- RNF 21.4.2 – Tratamento de erros e código testável onde aplicável (ex.: cálculo de próximo fim de semana).
+
+**Deliverables**
+
+- **core:database:** Adicionar `WEEKENDS` ao enum `RecurrenceType`.
+- **core:scheduling:** Em `RecurrenceHelper.nextOccurrenceMillis()`, tratar `WEEKENDS` (avançar até próximo sábado ou domingo). Em `RotinaPeriodHelper`, tratar `WEEKENDS` com período = fim de semana atual (sábado 00:00 – domingo 23:59:59); regra clara quando hoje é segunda–sexta.
+- **feature:reminders:** Dropdown de recorrência com opção "Finais de semana" mapeada a `RecurrenceType.WEEKENDS`. Lista com label "Finais de semana" para `WEEKENDS`. Strings para "Finais de semana".
+
+**Done criteria**
+
+- [x] Usuário pode escolher "Finais de semana" ao criar/editar.
+- [x] Lembretes WEEKENDS disparam apenas em sábado e domingo.
+- [x] Rotina com WEEKENDS usa período "fim de semana" em RotinaPeriodHelper.
+- [x] Lista mostra "Finais de semana".
+- [x] Documentação (SPRINTS, ARCHITECTURE, CONTEXT, TESTING) atualizada para a Sprint 21.4.
+
+**Status:** Done (tested and validated).
+
+**Lessons learned:** WEEKENDS espelha WEEKDAYS: enum em `RecurrenceType`, branch em `RecurrenceHelper.nextOccurrenceMillis` (avançar apenas sábado/domingo via `TemporalAdjusters.next(SATURDAY)` para segunda–sexta). Em `RotinaPeriodHelper`, período = fim de semana atual (sábado 00:00 – domingo 23:59:59) quando hoje é sábado/domingo; quando hoje é segunda–sexta, período = próximo fim de semana (próximo sábado a domingo). UI: dropdown e label na lista com "Finais de semana". Room e Firestore tratam enum por nome; sem migração.
+
+---
+
+## Sprint 22 – Documentation and release prep
 
 **Goal:** Docs and release readiness.
 
@@ -1273,7 +1420,7 @@ Each sprint ends with a runnable, testable slice. Update this file after each sp
 **Done criteria:**
 
 - [ ] New developer (or AI) can onboard using docs and run tests.
-- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 20 section).
+- [ ] Validate via [TESTING.md](TESTING.md) (Sprint 22 section).
 
 **Status:** Not started.
 

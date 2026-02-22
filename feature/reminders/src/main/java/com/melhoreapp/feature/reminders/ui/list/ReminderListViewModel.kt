@@ -239,7 +239,7 @@ class ReminderListViewModel @Inject constructor(
         }
     }
 
-    // Tab-filtered list: TAREFAS = includes task reminders (excludes Rotinas), ROTINAS = routine (non-task) reminders (Sprint 21)
+    // Tab-filtered list: TAREFAS = includes task reminders (excludes Rotinas), ROTINAS = routine (non-task) reminders (Sprint 20)
     private val remindersWithChecklistForTab: StateFlow<List<ReminderWithChecklist>> = combine(
         remindersWithChecklist,
         _selectedTab

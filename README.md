@@ -28,7 +28,7 @@ To use Google Sign-In you must:
 
 ## Project structure
 
-- **app** – Application class, MainActivity, theme, navigation (depends on all features and core).
+- **app** – Application class, MainActivity, theme, navigation, app icon (adaptive icon since Sprint 21.3; depends on all features and core).
 - **core/common** – Shared utilities and types (e.g. `Result`).
 - **core/auth** – Google Sign-In and user session (AuthRepository, Hilt module).
 - **core/database** – Room database, entities, DAOs, Hilt module.

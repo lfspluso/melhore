@@ -1,5 +1,6 @@
 package com.melhoreapp.feature.reminders.ui.routine
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,6 +30,8 @@ data class TaskInput(
     val startTime: Long,
     val checkupFrequencyHours: Int
 )
+
+private const val TAG = "RotinaTaskSetup"
 
 @HiltViewModel
 class RotinaTaskSetupViewModel @Inject constructor(
@@ -135,6 +138,9 @@ class RotinaTaskSetupViewModel @Inject constructor(
             val reminder = _parentReminder.value ?: return@launch
             if (reminder.status != ReminderStatus.ACTIVE || !reminder.isRoutine) return@launch
 
+            // Cancel all alarms (main and 30-min) before rescheduling (Sprint 21.1)
+            reminderScheduler.cancelReminder(reminderId)
+
             val now = System.currentTimeMillis()
             val nextDue = nextOccurrenceMillis(
                 reminder.dueAt,
@@ -207,6 +213,13 @@ class RotinaTaskSetupViewModel @Inject constructor(
                 notes = "",
                 isSnoozeFire = false
             )
+
+            // First pending-confirmation alert at dueAt+60min (Sprint 21.2); failure must not block save
+            try {
+                reminderScheduler.schedulePendingConfirmationCheck(taskId, task.startTime)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to schedule pending-confirmation check for taskId=$taskId", e)
+            }
         }
 
         if (uid != "local") syncRepository.uploadAllInBackground(uid)

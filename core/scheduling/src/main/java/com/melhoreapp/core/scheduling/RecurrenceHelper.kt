@@ -5,6 +5,7 @@ import com.melhoreapp.core.database.entity.RecurrenceType
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
+import java.time.temporal.TemporalAdjusters
 
 /**
  * Computes the next occurrence time for a recurring reminder.
@@ -40,6 +41,17 @@ fun nextOccurrenceMillis(
                     dayOfWeek == DayOfWeek.FRIDAY -> instant = instant.plusDays(3) // Skip to Monday
                     dayOfWeek == DayOfWeek.SATURDAY -> instant = instant.plusDays(2) // Skip to Monday
                     else -> instant = instant.plusDays(1) // Next day
+                }
+            }
+        }
+        RecurrenceType.WEEKENDS -> {
+            // Advance to next Saturday or Sunday only (weekend days)
+            while (instant.isBefore(now) || instant.isEqual(now)) {
+                val dayOfWeek = instant.dayOfWeek
+                when {
+                    dayOfWeek == DayOfWeek.SATURDAY -> instant = instant.plusDays(1) // Sunday
+                    dayOfWeek == DayOfWeek.SUNDAY -> instant = instant.plusDays(6) // Next Saturday
+                    else -> instant = instant.with(TemporalAdjusters.next(DayOfWeek.SATURDAY)) // Mon–Fri -> next Saturday
                 }
             }
         }

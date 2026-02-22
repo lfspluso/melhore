@@ -474,7 +474,9 @@ This document describes how to test and validate each sprint (or step) of the ap
 - **Sprint 19:** Data migration & sync polish (see section below).
 - **Sprint 19.5:** Local-only option: "Continuar sem entrar" on login; data stays on device; "Apenas neste aparelho" row; Sign out returns to login, data persists.
 - **Sprint 19.75:** Weekday daily trigger: "Dias úteis" recurrence type fires Monday-Friday, skipping weekends; Rotinas with weekdays fire every weekday for task setup.
-- **Sprint 20:** (Future) Documentation and release prep.
+- **Sprint 20:** Bug Fixes and UI Improvements (Tarefas visibility, Rotina notification prevention, filter/sort icons, sync banner overlay, hourly pending confirmation check, "Melhore" branding).
+- **Sprint 21.1–21.4:** Sprint 21.1–21.4 done (Rotina skip day, PENDENTE CONFIRMAÇÃO for all tasks, app icon, "Finais de semana" recurrence). See [SPRINTS.md](SPRINTS.md).
+- **Sprint 22:** (Future) Documentation and release prep.
 
 Update this file when you add new behaviour or change acceptance criteria (e.g. new screens or flows). Keep [SPRINTS.md](SPRINTS.md) and this file in sync so “done” in SPRINTS matches what is validated here.
 
@@ -609,7 +611,7 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 
 ---
 
-## Sprint 20 – Documentation and release prep *(to be implemented)*
+## Sprint 22 – Documentation and release prep *(to be implemented)*
 
 **Goal:** Docs and release readiness.
 
@@ -747,7 +749,7 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 
 ---
 
-## Sprint 21 – Bug Fixes and UI Improvements
+## Sprint 20 – Bug Fixes and UI Improvements
 
 ### Tarefas Visibility Fix
 
@@ -812,6 +814,67 @@ Update this file when you add new behaviour or change acceptance criteria (e.g. 
 | 3 | Check empty states, dialogs, and error messages. | All UI strings consistently use "Melhore" with capital M. |
 
 **Validation:** Tarefas tab includes task reminders; Rotinas do not notify when tasks exist; sync banner overlays without pushing content; filter/sort icons open bottom sheets; active states are visible; hourly worker notifies for pending confirmation; all UI strings use "Melhore" with capital M.
+
+---
+
+## Sprint 21.1 – Rotina: ao pular dia, não notificar até o dia seguinte *(validated)*
+
+**Goal:** When user skips the day on a Rotina, no further notifications until the next occurrence (e.g. next day). When user does not skip (dismiss or open without action), 30‑min notifications continue.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a daily Rotina and wait for its notification (or trigger it). | Rotina notification appears with "Pular dia" action. |
+| 2 | Tap **Pular dia** on the notification (or open task setup from the notification and tap "Pular dia" there). | Rotina advances to next occurrence; notification is dismissed; all alarms for that Rotina are cancelled and only the next occurrence is scheduled. |
+| 3 | Wait 30 minutes (after having tapped "Pular dia"). | No notification arrives (skip day stopped 30‑min repeat). |
+| 4 | Wait until the next occurrence (e.g. next day at same time). | Rotina notification appears only at the next occurrence. |
+| 5 | Create a daily Rotina, wait for notification, then **dismiss** it (or open and leave without skipping/adding tasks). Wait 30 minutes. | Another notification arrives (Rotinas get 30‑min repeat until user skips day or adds tasks). |
+
+**Validation:** After skip day, no 30‑min notification; next notification only at next scheduled occurrence. If user does not skip the day, 30‑min notifications continue. See [SPRINTS.md](SPRINTS.md) Sprint 21.1. **Status:** Manual testing completed; sprint validated.
+
+---
+
+## Sprint 21.2 – PENDENTE CONFIRMAÇÃO para todas as tarefas e a cada hora
+
+**Goal:** All tasks (including Tarefas from Rotinas) trigger PENDENTE CONFIRMAÇÃO notification; notification repeats every hour until user confirms.
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a Rotina, add tasks for today with a due time in the past. | Tasks are created. |
+| 2 | Open Melhores → Tarefas tab. | Pending confirmation warning section lists those tasks (and any other one-time past-due reminders). |
+| 3 | Close app and wait 1 hour. | Notification "Melhores pendentes de confirmação" appears (worker runs hourly). |
+| 4 | Complete or cancel one pending reminder. | That item no longer appears in pending section; next hourly run does not include it. |
+| 5 | (Optional) Create a new task (Rotina or one-time) with due time in the past; leave app in background. | Within up to 60 minutes, a pending-confirmation check can run (alarme at dueAt+60min or next hourly worker), and "Melhores pendentes de confirmação" notification may appear. |
+
+**Validation:** Tarefas from Rotinas appear in PENDENTE CONFIRMAÇÃO; hourly notification continues until user confirms. See [SPRINTS.md](SPRINTS.md) Sprint 21.2. **Status:** Manual testing completed; sprint validated.
+
+---
+
+## Sprint 21.3 – Ícone do app
+
+**Goal:** App displays a dedicated app icon (replace generic icon).
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Install the app and view the launcher (or app drawer). | App shows the new MelhoreApp icon (not the generic placeholder). |
+| 2 | Check icon on task switcher / recent apps. | Same icon is displayed. |
+| 3 | Build and install from Android Studio. | Build succeeds; icon appears correctly. |
+
+**Validation:** Dedicated icon visible; adaptive icon where supported (API 26+). See [SPRINTS.md](SPRINTS.md) Sprint 21.3. **Status:** Implemented; validate manually after install.
+
+---
+
+## Sprint 21.4 – Período "Finais de semana" *(validated)*
+
+**Goal:** Recurrence option "Finais de semana" (Saturday and Sunday only).
+
+| Step | Action | Expected behaviour |
+|------|--------|--------------------|
+| 1 | Create a new reminder; open recurrence dropdown. | Option "Finais de semana" is available. |
+| 2 | Select "Finais de semana", set time, save. | Reminder is saved; list shows "Finais de semana" as recurrence label. |
+| 3 | Set reminder for a weekday (e.g. Monday 10:00). | Next occurrence is calculated to Saturday (or next weekend day) at same time. |
+| 4 | Create a Rotina with "Finais de semana". | Rotina period for task setup is current weekend (Sat–Sun) when today is Sat/Sun, or next weekend when today is Mon–Fri. |
+
+**Validation:** WEEKENDS recurrence fires only on Saturday and Sunday; UI shows "Finais de semana". See [SPRINTS.md](SPRINTS.md) Sprint 21.4. **Status:** Manual testing completed; sprint validated.
 
 ---
 

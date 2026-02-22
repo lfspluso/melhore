@@ -218,7 +218,7 @@ class AddReminderViewModel @Inject constructor(
                 }
                 reminderScheduler.scheduleReminder(reminderId, _dueAt.value, t, existing.notes, isSnoozeFire = false)
                 reminderScheduler.cancelPendingConfirmationCheck(reminderId)
-                if (_recurrenceType.value == RecurrenceType.NONE) {
+                if (_recurrenceType.value == RecurrenceType.NONE && !_isRoutine.value) {
                     reminderScheduler.schedulePendingConfirmationCheck(reminderId, _dueAt.value)
                 }
                 if (uid != "local") syncRepository.uploadAllInBackground(uid)
@@ -259,7 +259,7 @@ class AddReminderViewModel @Inject constructor(
                     )
                 }
                 reminderScheduler.scheduleReminder(id, _dueAt.value, t, entity.notes, isSnoozeFire = false)
-                if (_recurrenceType.value == RecurrenceType.NONE) {
+                if (_recurrenceType.value == RecurrenceType.NONE && !_isRoutine.value) {
                     reminderScheduler.schedulePendingConfirmationCheck(id, _dueAt.value)
                 }
                 if (uid != "local") syncRepository.uploadAllInBackground(uid)
